@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -426,7 +426,7 @@ sub copy_objects($$;$\@) {
     my @redefine;
     my @redefine_;
     my $syms_file = "__kmp_sym_pairs.log";
-    
+
     if ( $target_arch eq "mic" ) {
         $tool = "x86_64-k1om-linux-objcopy"
     } else {

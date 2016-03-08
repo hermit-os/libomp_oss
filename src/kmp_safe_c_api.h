@@ -1,5 +1,5 @@
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -41,40 +41,47 @@
 
 # define RSIZE_MAX_STR ( 4UL << 10 ) // 4KB
 
-// _malloca was suggested, but it is not a drop-in replacement for _alloca
+// No replacement for _alloca
 # define KMP_ALLOCA                  _alloca
 
+// Safe replacement
 # define KMP_MEMCPY_S                memcpy_s
-# define KMP_SNPRINTF                sprintf_s
+
+// Call sprintf_s after discarding the function suffix for *nix.
+# define KMP_SNPRINTF(sig, ...)      sprintf_s(__VA_ARGS__)
 # define KMP_SSCANF                  sscanf_s
 # define KMP_STRCPY_S                strcpy_s
 # define KMP_STRNCPY_S               strncpy_s
-
-// Use this only when buffer size is unknown
-# define KMP_MEMCPY(dst, src, cnt)   memcpy_s(dst, cnt, src, cnt)
-
 # define KMP_STRLEN(str)             strnlen_s(str, RSIZE_MAX_STR)
-
-// Use this only when buffer size is unknown
-# define KMP_STRNCPY(dst, src, cnt)  strncpy_s(dst, cnt, src, cnt)
-
 // _TRUNCATE insures buffer size > max string to print.
 # define KMP_VSNPRINTF(dst, cnt, fmt, arg)  vsnprintf_s(dst, cnt, _TRUNCATE, fmt, arg)
 
+// Use these functions only when buffer size is unknown
+# define KMP_MEMCPY(dst, src, cnt)   memcpy_s(dst, cnt, src, cnt)
+# define KMP_STRNCPY(dst, src, cnt)  strncpy_s(dst, cnt, src, cnt)
+
 #else // KMP_OS_WINDOWS
 
-// For now, these macros use the existing API.
+# include "safe_lib.h"
+# include "snprintf_s.h"
 
-# define KMP_ALLOCA                         alloca
-# define KMP_MEMCPY_S(dst, bsz, src, cnt)   memcpy(dst, src, cnt)
-# define KMP_SNPRINTF                       snprintf
-# define KMP_SSCANF                         sscanf
-# define KMP_STRCPY_S(dst, bsz, src)        strcpy(dst, src) 
-# define KMP_STRNCPY_S(dst, bsz, src, cnt)  strncpy(dst, src, cnt)
-# define KMP_VSNPRINTF                      vsnprintf
-# define KMP_STRNCPY                        strncpy
-# define KMP_STRLEN                         strlen
-# define KMP_MEMCPY                         memcpy
+// No replacement for these functions
+# define KMP_ALLOCA                 alloca
+# define KMP_SSCANF                 sscanf
+# define KMP_VSNPRINTF              vsnprintf
+
+// Safe replacement
+# define KMP_MEMCPY_S               memcpy_s
+# define KMP_STRCPY_S               strcpy_s
+# define KMP_STRNCPY_S              strncpy_s
+# define KMP_STRLEN(str)            strnlen_s(str, RSIZE_MAX_STR)
+
+// Call non-variadic snprintf functions
+# define KMP_SNPRINTF(sig, ...)     snprintf_##sig(__VA_ARGS__)
+
+// Use these functions only when buffer size is unknown
+# define KMP_STRNCPY(dst, src, cnt) strncpy_s(dst, cnt, src, cnt)
+# define KMP_MEMCPY(dst, src, cnt)  memcpy_s(dst, cnt, src, cnt)
 
 #endif // KMP_OS_WINDOWS
 

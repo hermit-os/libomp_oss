@@ -4,7 +4,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -112,7 +112,7 @@ __kmp_omp_debug_struct_info = {
     sizeof( void * ),
     OMP_LOCK_T_SIZE < sizeof(void *),
     bs_last_barrier,
-    TASK_DEQUE_SIZE,
+    INITIAL_TASK_DEQUE_SIZE,
 
     // thread structure information
     sizeof( kmp_base_info_t ),
@@ -129,11 +129,13 @@ __kmp_omp_debug_struct_info = {
     offset_and_size_of( kmp_base_info_t,   th_bar ),
     offset_and_size_of( kmp_bstate_t,      b_worker_arrived ),
 
+#if OMP_40_ENABLED
     // teams information
     offset_and_size_of( kmp_base_info_t, th_teams_microtask),
     offset_and_size_of( kmp_base_info_t, th_teams_level),
     offset_and_size_of( kmp_teams_size_t, nteams ),
     offset_and_size_of( kmp_teams_size_t, nth ),
+#endif
 
     // kmp_desc structure (for info field above)
     sizeof( kmp_desc_base_t ),
@@ -159,7 +161,9 @@ __kmp_omp_debug_struct_info = {
     offset_and_size_of( kmp_base_team_t,   t_pkfn       ),
     offset_and_size_of( kmp_base_team_t,   t_task_team ),
     offset_and_size_of( kmp_base_team_t,   t_implicit_task_taskdata ),
+#if OMP_40_ENABLED
     offset_and_size_of( kmp_base_team_t,   t_cancel_request ),
+#endif
     offset_and_size_of( kmp_base_team_t,   t_bar ),
     offset_and_size_of( kmp_balign_team_t, b_master_arrived ),
     offset_and_size_of( kmp_balign_team_t, b_team_arrived ),
@@ -219,6 +223,7 @@ __kmp_omp_debug_struct_info = {
     offset_and_size_of( kmp_taskdata_t, td_taskwait_counter ),
     offset_and_size_of( kmp_taskdata_t, td_taskwait_thread  ),
 
+#if OMP_40_ENABLED
     offset_and_size_of( kmp_taskdata_t, td_taskgroup        ),
     offset_and_size_of( kmp_taskgroup_t, count              ),
     offset_and_size_of( kmp_taskgroup_t, cancel_request     ),
@@ -230,11 +235,13 @@ __kmp_omp_debug_struct_info = {
     offset_and_size_of( kmp_base_depnode_t, task            ),
     offset_and_size_of( kmp_base_depnode_t, npredecessors   ),
     offset_and_size_of( kmp_base_depnode_t, nrefs           ),
+#endif
     offset_and_size_of( kmp_task_t, routine                 ),
 
     // thread_data_t.
     sizeof( kmp_thread_data_t ),
     offset_and_size_of( kmp_base_thread_data_t, td_deque             ),
+    offset_and_size_of( kmp_base_thread_data_t, td_deque_size        ),
     offset_and_size_of( kmp_base_thread_data_t, td_deque_head        ),
     offset_and_size_of( kmp_base_thread_data_t, td_deque_tail        ),
     offset_and_size_of( kmp_base_thread_data_t, td_deque_ntasks      ),

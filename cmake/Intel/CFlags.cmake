@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -44,11 +44,11 @@ function(append_compiler_specific_c_and_cxx_flags input_c_flags input_cxx_flags)
     set(local_c_flags)
     set(local_cxx_flags)
     if(${WINDOWS})
-        
+
         append_c_flags("-TP") # Tells the compiler to process a file as a C++ source file.
         append_cxx_flags("-EHsc") # Enable C++ exception handling.
         append_c_and_cxx_flags("-nologo") # Turn off tool banner.
-        append_c_and_cxx_flags("-W3") # Enables diagnostics for remarks, warnings, and errors. 
+        append_c_and_cxx_flags("-W3") # Enables diagnostics for remarks, warnings, and errors.
                                       # Additional warnings are also enabled above level 2 warnings.
         append_c_and_cxx_flags("-WX") # Change all Warnings to Errors
         append_c_and_cxx_flags("-GS") # Lets you control the threshold at which the stack checking routine is called or not called.
@@ -78,13 +78,13 @@ function(append_compiler_specific_c_and_cxx_flags input_c_flags input_cxx_flags)
             if(NOT ${MIC})
                 append_c_and_cxx_flags("-Werror") # Changes all warnings to errors.
             endif()
-            append_c_and_cxx_flags("-sox") # Tells the compiler to save the compilation options and version number 
-                                           # in the executable file. It also lets you choose whether to include 
+            append_c_and_cxx_flags("-sox") # Tells the compiler to save the compilation options and version number
+                                           # in the executable file. It also lets you choose whether to include
                                            # lists of certain functions.
         if(${MIC})
             append_c_and_cxx_flags("-mmic") # Build Intel(R) MIC Architecture native code
-            append_c_and_cxx_flags("-ftls-model=initial-exec") # Changes the thread local storage (TLS) model. Generates a restrictive, optimized TLS code. 
-                                                               # To use this setting, the thread-local variables accessed must be defined in one of the 
+            append_c_and_cxx_flags("-ftls-model=initial-exec") # Changes the thread local storage (TLS) model. Generates a restrictive, optimized TLS code.
+                                                               # To use this setting, the thread-local variables accessed must be defined in one of the
                                                                # modules available to the program.
             append_c_and_cxx_flags("-opt-streaming-stores never") # Disables generation of streaming stores for optimization.
             elseif(${IA32})
@@ -120,12 +120,12 @@ function(append_compiler_specific_linker_flags input_ld_flags input_ld_flags_lib
         set(CMAKE_C_CREATE_SHARED_LIBRARY "link.exe /out:<TARGET> <LINK_FLAGS> <OBJECTS> <LINK_LIBRARIES>" PARENT_SCOPE)
         set(CMAKE_SHARED_LINKER_FLAGS "$ENV{LDFLAGS}" CACHE STRING "Linker Flags" FORCE)
         append_linker_flags("-nologo") # Turn off tool banner.
-        append_linker_flags("-dll") 
+        append_linker_flags("-dll")
         append_linker_flags("-WX:NO")
         append_linker_flags("-incremental:no")
         append_linker_flags("-version:${LIBOMP_VERSION}.0")
         append_linker_flags("-NXCompat")
-        append_linker_flags("-DynamicBase") # This option modifies the header of an executable to indicate 
+        append_linker_flags("-DynamicBase") # This option modifies the header of an executable to indicate
                                                # whether the application should be randomly rebased at load time.
         if(${IA32})
             append_linker_flags("-machine:i386")

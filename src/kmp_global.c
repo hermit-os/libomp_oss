@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -34,10 +34,6 @@
 
 #include "kmp.h"
 
-#ifdef KMP_SETVERSION
-char __kmp_setversion_string[] = VERSION_STRING;
-#endif
-
 kmp_key_t __kmp_gtid_threadprivate_key;
 
 kmp_cpuinfo_t   __kmp_cpuinfo = { 0 }; // Not initialized
@@ -45,7 +41,7 @@ kmp_cpuinfo_t   __kmp_cpuinfo = { 0 }; // Not initialized
 #if KMP_STATS_ENABLED
 #include "kmp_stats.h"
 // lock for modifying the global __kmp_stats_list
-kmp_tas_lock_t __kmp_stats_lock = KMP_TAS_LOCK_INITIALIZER(__kmp_stats_lock);
+kmp_tas_lock_t __kmp_stats_lock;
 
 // global list of per thread stats, the head is a sentinel node which accumulates all stats produced before __kmp_create_worker is called.
 kmp_stats_list __kmp_stats_list;
@@ -55,6 +51,10 @@ __thread kmp_stats_list* __kmp_stats_thread_ptr = &__kmp_stats_list;
 
 // gives reference tick for all events (considered the 0 tick)
 tsc_tick_count __kmp_stats_start_time;
+#endif
+#if KMP_USE_HWLOC
+int __kmp_hwloc_error = FALSE;
+hwloc_topology_t __kmp_hwloc_topology = NULL;
 #endif
 
 /* ----------------------------------------------------- */
@@ -145,6 +145,7 @@ int      __kmp_dflt_team_nth_ub = 0;
 int           __kmp_tp_capacity = 0;
 int             __kmp_tp_cached = 0;
 int           __kmp_dflt_nested = FALSE;
+int  __kmp_dispatch_num_buffers = KMP_DFLT_DISP_NUM_BUFF;
 int __kmp_dflt_max_active_levels = KMP_MAX_ACTIVE_LEVELS_LIMIT; /* max_active_levels limit */
 #if KMP_NESTED_HOT_TEAMS
 int __kmp_hot_teams_mode         = 0; /* 0 - free extra threads when reduced */
@@ -214,7 +215,6 @@ int __kmp_display_env_verbose   = FALSE;
 int __kmp_omp_cancellation      = FALSE;
 #endif
 
-
 /* map OMP 3.0 schedule types with our internal schedule types */
 enum sched_type __kmp_sch_map[ kmp_sched_upper - kmp_sched_lower_ext + kmp_sched_upper_std - kmp_sched_lower - 2 ] = {
     kmp_sch_static_chunked,     // ==> kmp_sched_static            = 1
@@ -279,6 +279,9 @@ int __kmp_place_core_offset = 0;
 int __kmp_place_num_threads_per_core = 0;
 
 kmp_tasking_mode_t __kmp_tasking_mode = tskm_task_teams;
+#if OMP_41_ENABLED
+kmp_int32 __kmp_max_task_priority = 0;
+#endif
 
 /* This check ensures that the compiler is passing the correct data type
  * for the flags formal parameter of the function kmpc_omp_task_alloc().
@@ -340,7 +343,6 @@ int     __kmp_storage_map_verbose_specified = FALSE;
 /* Initialize the library data structures when we fork a child process, defaults to TRUE */
 int     __kmp_need_register_atfork = TRUE; /* At initialization, call pthread_atfork to install fork handler */
 int     __kmp_need_register_atfork_specified = TRUE;
-
 
 int        __kmp_env_chunk       = FALSE;  /* KMP_CHUNK specified?     */
 int        __kmp_env_stksize     = FALSE;  /* KMP_STACKSIZE specified? */

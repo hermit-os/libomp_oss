@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -39,18 +39,20 @@ function(append_cpp_flags input_cpp_flags)
 
     append_definitions("-D USE_ITT_BUILD")
     append_definitions("-D KMP_ARCH_STR=\"\\\\\"${legal_arch}\\\\\"\"")
-    append_definitions("-D BUILD_I8")
+    if((NOT ${ARM}) AND (NOT ${IA32}))
+        append_definitions("-D BUILD_I8")
+    endif()
     append_definitions("-D KMP_LIBRARY_FILE=\\\\\"${lib_file}\\\\\"") # yes... you need 5 backslashes...
     append_definitions("-D KMP_VERSION_MAJOR=${LIBOMP_VERSION}")
     append_definitions("-D KMP_NESTED_HOT_TEAMS")
-    
+
     # customize to 128 bytes for ppc64
     if(${PPC64})
     	append_definitions("-D CACHE_LINE=128")
     else()
     	append_definitions("-D CACHE_LINE=64")
     endif()
-    
+
     append_definitions("-D KMP_ADJUST_BLOCKTIME=1")
     append_definitions("-D BUILD_PARALLEL_ORDERED")
     append_definitions("-D KMP_ASM_INTRINS")
@@ -90,7 +92,7 @@ function(append_cpp_flags input_cpp_flags)
     endif()
 
     # Any architecture other than Intel(R) MIC Architecture
-    if(NOT ${MIC}) 
+    if(NOT ${MIC})
         append_definitions("-D USE_LOAD_BALANCE")
     endif()
 
@@ -105,12 +107,12 @@ function(append_cpp_flags input_cpp_flags)
     if(${LIBOMP_ENABLE_ASSERTIONS})
         append_definitions("-D KMP_USE_ASSERT")
     endif()
-    append_definitions("-D KMP_DYNAMIC_LIB") 
-    if(${STUBS_LIBRARY}) 
-        append_definitions("-D KMP_STUB") 
+    append_definitions("-D KMP_DYNAMIC_LIB")
+    if(${STUBS_LIBRARY})
+        append_definitions("-D KMP_STUB")
     endif()
-    if(${DEBUG_BUILD} OR ${RELWITHDEBINFO_BUILD}) 
-        append_definitions("-D KMP_DEBUG") 
+    if(${DEBUG_BUILD} OR ${RELWITHDEBINFO_BUILD})
+        append_definitions("-D KMP_DEBUG")
     endif()
     if(${DEBUG_BUILD})
         append_definitions("-D _DEBUG")
@@ -140,6 +142,11 @@ function(append_cpp_flags input_cpp_flags)
         append_definitions("-D OMPT_TRACE=1")
     else()
         append_definitions("-D OMPT_TRACE=0")
+    endif()
+    if(${LIBOMP_USE_HWLOC})
+        append_definitions("-D KMP_USE_HWLOC=1")
+    else()
+        append_definitions("-D KMP_USE_HWLOC=0")
     endif()
 
     # OpenMP version flags

@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -46,14 +46,11 @@ endmacro()
 
 # files are relative to the src directory
 
-function(set_c_files input_c_source_files) 
+function(set_c_files input_c_source_files)
     set(local_c_source_files "")
     append_c_source_file("kmp_ftn_cdecl.c")
     append_c_source_file("kmp_ftn_extra.c")
     append_c_source_file("kmp_version.c")
-    if(${LIBOMP_OMPT_SUPPORT})
-        append_c_source_file("ompt-general.c")
-    endif()
     if(${STUBS_LIBRARY})
         append_c_source_file("kmp_stub.c")
     else()
@@ -75,6 +72,9 @@ function(set_c_files input_c_source_files)
         append_c_source_file("kmp_taskq.c")
         append_c_source_file("kmp_threadprivate.c")
         append_c_source_file("kmp_utility.c")
+        if(${LIBOMP_OMPT_SUPPORT})
+            append_c_source_file("ompt-general.c")
+        endif()
         if(${LIBOMP_USE_ITT_NOTIFY})
             append_c_source_file("thirdparty/ittnotify/ittnotify_static.c")
         endif()
@@ -84,12 +84,21 @@ function(set_c_files input_c_source_files)
         else()
             append_c_source_file("z_Linux_util.c")
             append_c_source_file("kmp_gsupport.c")
+            append_c_source_file("thirdparty/safeclib/ignore_handler_s.c")
+            append_c_source_file("thirdparty/safeclib/mem_primitives_lib.c")
+            append_c_source_file("thirdparty/safeclib/memcpy_s.c")
+            append_c_source_file("thirdparty/safeclib/safe_mem_constraint.c")
+            append_c_source_file("thirdparty/safeclib/safe_str_constraint.c")
+            append_c_source_file("thirdparty/safeclib/strcpy_s.c")
+            append_c_source_file("thirdparty/safeclib/strncpy_s.c")
+            append_c_source_file("thirdparty/safeclib/strnlen_s.c")
+            append_c_source_file("thirdparty/safeclib/snprintf_support.c")
         endif()
     endif()
     set(${input_c_source_files} "${local_c_source_files}" PARENT_SCOPE)
 endfunction()
 
-function(set_cpp_files input_cpp_source_files) 
+function(set_cpp_files input_cpp_source_files)
     set(local_cpp_source_files "")
     if(NOT ${STUBS_LIBRARY})
         append_cpp_source_file("kmp_barrier.cpp")
@@ -112,7 +121,7 @@ function(set_cpp_files input_cpp_source_files)
 endfunction()
 
 
-function(set_asm_files input_asm_source_files) 
+function(set_asm_files input_asm_source_files)
     set(local_asm_source_files "")
     if(NOT ${STUBS_LIBRARY})
         if(${WINDOWS})

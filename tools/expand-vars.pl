@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # <copyright>
-#    Copyright (c) 2007-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2007-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -132,15 +132,15 @@ $bulk = read_file( $input );
 
 # Do the replacements.
 $bulk =~
-    s{(?:\$($keyword_rexp)|\$($name_rexp)|\${{(.*?)}})}
+    s{(?:\$($keyword_rexp)|\$($name_rexp)|\${{(.*?)}}|@($name_rexp)@)}
     {
         my $value;
         if ( defined( $1 ) ) {
             # Keyword. Leave it as is.
             $value = "\$$1";
-        } elsif ( defined( $2 ) ) {
+        } elsif ( defined( $2 ) || defined( $4 ) ) {
             # Variable to expand.
-            my $name = $2;
+            my $name = (defined($2)) ? $2 : $4;
             $value = eval( "\$__EXPAND_VARS__::$name" );
             if ( $@ ) {
                 die( "Internal error" );

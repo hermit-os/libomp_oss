@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -1197,7 +1197,7 @@ bufdump(  kmp_info_t *th, void *buf )
         }
 
         for (i = 0; i < l; i++) {
-            (void) KMP_SNPRINTF(bhex + i * 3, sizeof(bhex) - i * 3, "%02X ", bdump[i]);
+            (void) KMP_SNPRINTF(i1, bhex + i * 3, sizeof(bhex) - i * 3, "%02X ", bdump[i]);
             if (bdump[i] > 0x20 && bdump[i] < 0x7F)
                 bascii[ i ] = bdump[ i ];
             else
@@ -1446,8 +1446,37 @@ void *
 kmpc_malloc( size_t size )
 {
     void * ptr;
-        ptr = bget( __kmp_entry_thread(), (bufsize) size );
+    ptr = bget( __kmp_entry_thread(), (bufsize)(size + sizeof(ptr)) );
+    if( ptr != NULL ) {
+        // save allocated pointer just before one returned to user
+        *(void**)ptr = ptr;
+        ptr = (void**)ptr + 1;
+    }
+    return ptr;
+}
 
+#define IS_POWER_OF_TWO(n) (((n)&((n)-1))==0)
+
+void *
+kmpc_aligned_malloc( size_t size, size_t alignment )
+{
+    void * ptr;
+    void * ptr_allocated;
+    KMP_DEBUG_ASSERT( alignment < 32 * 1024 ); // Alignment should not be too big
+    if( !IS_POWER_OF_TWO(alignment) ) {
+        // AC: do we need to issue a warning here?
+        errno = EINVAL;
+        return NULL;
+    }
+    size = size + sizeof( void* ) + alignment;
+    ptr_allocated = bget( __kmp_entry_thread(), (bufsize)size );
+    if( ptr_allocated != NULL ) {
+        // save allocated pointer just before one returned to user
+        ptr = (void*)(((kmp_uintptr_t)ptr_allocated + sizeof( void* ) + alignment) & ~(alignment - 1));
+        *((void**)ptr - 1) = ptr_allocated;
+    } else {
+        ptr = NULL;
+    }
     return ptr;
 }
 
@@ -1455,8 +1484,12 @@ void *
 kmpc_calloc( size_t nelem, size_t elsize )
 {
     void * ptr;
-        ptr = bgetz( __kmp_entry_thread(), (bufsize) (nelem * elsize) );
-
+    ptr = bgetz( __kmp_entry_thread(), (bufsize) (nelem * elsize + sizeof(ptr)) );
+    if( ptr != NULL ) {
+        // save allocated pointer just before one returned to user
+        *(void**)ptr = ptr;
+        ptr = (void**)ptr + 1;
+    }
     return ptr;
 }
 
@@ -1464,19 +1497,27 @@ void *
 kmpc_realloc( void * ptr, size_t size )
 {
     void * result = NULL;
-
-        if ( ptr == NULL ) {
-            // If pointer is NULL, realloc behaves like malloc.
-            result = bget( __kmp_entry_thread(), (bufsize) size );
-        } else if ( size == 0 ) {
-            // If size is 0, realloc behaves like free.
-            // The thread must be registered by the call to kmpc_malloc() or kmpc_calloc() before.
-            // So it should be safe to call __kmp_get_thread(), not __kmp_entry_thread().
-            brel( __kmp_get_thread(), ptr );
-        } else {
-            result = bgetr( __kmp_entry_thread(), ptr, (bufsize) size );
-        }; // if
-
+    if ( ptr == NULL ) {
+        // If pointer is NULL, realloc behaves like malloc.
+        result = bget( __kmp_entry_thread(), (bufsize)(size + sizeof(ptr)) );
+        // save allocated pointer just before one returned to user
+        if( result != NULL ) {
+            *(void**)result = result;
+            result = (void**)result + 1;
+        }
+    } else if ( size == 0 ) {
+        // If size is 0, realloc behaves like free.
+        // The thread must be registered by the call to kmpc_malloc() or kmpc_calloc() before.
+        // So it should be safe to call __kmp_get_thread(), not __kmp_entry_thread().
+        KMP_ASSERT(*((void**)ptr - 1));
+        brel( __kmp_get_thread(), *((void**)ptr - 1) );
+    } else {
+        result = bgetr( __kmp_entry_thread(), *((void**)ptr - 1), (bufsize)(size + sizeof(ptr)) );
+        if( result != NULL ) {
+            *(void**)result = result;
+            result = (void**)result + 1;
+        }
+    }; // if
     return result;
 }
 
@@ -1489,9 +1530,11 @@ kmpc_free( void * ptr )
         return;
     }; // if
     if ( ptr != NULL ) {
-            kmp_info_t *th = __kmp_get_thread();
-            __kmp_bget_dequeue( th );         /* Release any queued buffers */
-            brel( th, ptr );
+        kmp_info_t *th = __kmp_get_thread();
+        __kmp_bget_dequeue( th );         /* Release any queued buffers */
+        // extract allocated pointer and free it
+        KMP_ASSERT(*((void**)ptr - 1));
+        brel( th, *((void**)ptr - 1) );
     };
 }
 
@@ -1508,7 +1551,7 @@ ___kmp_thread_malloc( kmp_info_t *th, size_t size KMP_SRC_LOC_DECL )
         (int) size
         KMP_SRC_LOC_PARM
     ) );
-        ptr = bget( th, (bufsize) size );
+    ptr = bget( th, (bufsize) size );
     KE_TRACE( 30, ( "<- __kmp_thread_malloc() returns %p\n", ptr ) );
     return ptr;
 }
@@ -1524,7 +1567,7 @@ ___kmp_thread_calloc( kmp_info_t *th, size_t nelem, size_t elsize KMP_SRC_LOC_DE
         (int) elsize
         KMP_SRC_LOC_PARM
     ) );
-        ptr = bgetz( th, (bufsize) (nelem * elsize) );
+    ptr = bgetz( th, (bufsize) (nelem * elsize) );
     KE_TRACE( 30, ( "<- __kmp_thread_calloc() returns %p\n", ptr ) );
     return ptr;
 }
@@ -1539,7 +1582,7 @@ ___kmp_thread_realloc( kmp_info_t *th, void *ptr, size_t size KMP_SRC_LOC_DECL )
         (int) size
         KMP_SRC_LOC_PARM
     ) );
-        ptr = bgetr( th, ptr, (bufsize) size );
+    ptr = bgetr( th, ptr, (bufsize) size );
     KE_TRACE( 30, ( "<- __kmp_thread_realloc() returns %p\n", ptr ) );
     return ptr;
 }
@@ -1554,8 +1597,8 @@ ___kmp_thread_free( kmp_info_t *th, void *ptr KMP_SRC_LOC_DECL )
         KMP_SRC_LOC_PARM
     ) );
     if ( ptr != NULL ) {
-            __kmp_bget_dequeue( th );         /* Release any queued buffers */
-            brel( th, ptr );
+        __kmp_bget_dequeue( th );         /* Release any queued buffers */
+        brel( th, ptr );
     }
     KE_TRACE( 30, ( "<- __kmp_thread_free()\n" ) );
 }
@@ -1621,11 +1664,11 @@ ___kmp_allocate_align( size_t size, size_t alignment KMP_SRC_LOC_DECL )
     descr.size_aligned = size;
     descr.size_allocated = descr.size_aligned + sizeof( kmp_mem_descr_t ) + alignment;
 
-    #if KMP_DEBUG
-        descr.ptr_allocated = _malloc_src_loc( descr.size_allocated, _file_, _line_ );
-    #else
+#if KMP_DEBUG
+    descr.ptr_allocated = _malloc_src_loc( descr.size_allocated, _file_, _line_ );
+#else
     descr.ptr_allocated = malloc_src_loc( descr.size_allocated KMP_SRC_LOC_PARM );
-    #endif
+#endif
     KE_TRACE( 10, (
         "   malloc( %d ) returned %p\n",
         (int) descr.size_allocated,
@@ -1657,11 +1700,10 @@ ___kmp_allocate_align( size_t size, size_t alignment KMP_SRC_LOC_DECL )
     KMP_DEBUG_ASSERT( addr_descr + sizeof( kmp_mem_descr_t ) == addr_aligned );
     KMP_DEBUG_ASSERT( addr_aligned + descr.size_aligned <= addr_allocated + descr.size_allocated );
     KMP_DEBUG_ASSERT( addr_aligned % alignment == 0 );
-
-    #ifdef KMP_DEBUG
-        memset( descr.ptr_allocated, 0xEF, descr.size_allocated );
-            // Fill allocated memory block with 0xEF.
-    #endif
+#ifdef KMP_DEBUG
+    memset( descr.ptr_allocated, 0xEF, descr.size_allocated );
+        // Fill allocated memory block with 0xEF.
+#endif
     memset( descr.ptr_aligned, 0x00, descr.size_aligned );
         // Fill the aligned memory block (which is intended for using by caller) with 0x00. Do not
         // put this filling under KMP_DEBUG condition! Many callers expect zeroed memory. (Padding
@@ -1672,7 +1714,6 @@ ___kmp_allocate_align( size_t size, size_t alignment KMP_SRC_LOC_DECL )
 
     KE_TRACE( 25, ( "<- ___kmp_allocate_align() returns %p\n", descr.ptr_aligned ) );
     return descr.ptr_aligned;
-
 } // func ___kmp_allocate_align
 
 
@@ -1685,13 +1726,11 @@ ___kmp_allocate_align( size_t size, size_t alignment KMP_SRC_LOC_DECL )
 void *
 ___kmp_allocate( size_t size KMP_SRC_LOC_DECL )
 {
-
     void * ptr;
     KE_TRACE( 25, ( "-> __kmp_allocate( %d ) called from %s:%d\n", (int) size KMP_SRC_LOC_PARM ) );
-        ptr = ___kmp_allocate_align( size, __kmp_align_alloc KMP_SRC_LOC_PARM );
+    ptr = ___kmp_allocate_align( size, __kmp_align_alloc KMP_SRC_LOC_PARM );
     KE_TRACE( 25, ( "<- __kmp_allocate() returns %p\n", ptr ) );
     return ptr;
-
 } // func ___kmp_allocate
 
 #if (BUILD_MEMORY==FIRST_TOUCH)
@@ -1745,7 +1784,7 @@ ___kmp_page_allocate( size_t size KMP_SRC_LOC_DECL )
         (int) size
         KMP_SRC_LOC_PARM
     ) );
-        ptr = ___kmp_allocate_align( size, page_size KMP_SRC_LOC_PARM );
+    ptr = ___kmp_allocate_align( size, page_size KMP_SRC_LOC_PARM );
     KE_TRACE( 25, ( "<- __kmp_page_allocate( %d ) returns %p\n", (int) size, ptr ) );
     return ptr;
 } // ___kmp_page_allocate
@@ -1757,49 +1796,45 @@ ___kmp_page_allocate( size_t size KMP_SRC_LOC_DECL )
 void
 ___kmp_free( void * ptr KMP_SRC_LOC_DECL )
 {
+    kmp_mem_descr_t descr;
+    kmp_uintptr_t   addr_allocated;        // Address returned by malloc().
+    kmp_uintptr_t   addr_aligned;          // Aligned address passed by caller.
 
-        kmp_mem_descr_t descr;
-        kmp_uintptr_t   addr_allocated;        // Address returned by malloc().
-        kmp_uintptr_t   addr_aligned;          // Aligned address passed by caller.
+    KE_TRACE( 25, ( "-> __kmp_free( %p ) called from %s:%d\n", ptr KMP_SRC_LOC_PARM ) );
+    KMP_ASSERT( ptr != NULL );
 
-        KE_TRACE( 25, ( "-> __kmp_free( %p ) called from %s:%d\n", ptr KMP_SRC_LOC_PARM ) );
-        KMP_ASSERT( ptr != NULL );
+    descr = * ( kmp_mem_descr_t *) ( (kmp_uintptr_t) ptr - sizeof( kmp_mem_descr_t ) );
 
-        descr = * ( kmp_mem_descr_t *) ( (kmp_uintptr_t) ptr - sizeof( kmp_mem_descr_t ) );
+    KE_TRACE( 26, ( "   __kmp_free:     "
+                    "ptr_allocated=%p, size_allocated=%d, "
+                    "ptr_aligned=%p, size_aligned=%d\n",
+                    descr.ptr_allocated, (int) descr.size_allocated,
+                    descr.ptr_aligned, (int) descr.size_aligned ));
 
-        KE_TRACE( 26, ( "   __kmp_free:     "
-                        "ptr_allocated=%p, size_allocated=%d, "
-                        "ptr_aligned=%p, size_aligned=%d\n",
-                        descr.ptr_allocated, (int) descr.size_allocated,
-                        descr.ptr_aligned, (int) descr.size_aligned ));
+    addr_allocated = (kmp_uintptr_t) descr.ptr_allocated;
+    addr_aligned   = (kmp_uintptr_t) descr.ptr_aligned;
 
-        addr_allocated = (kmp_uintptr_t) descr.ptr_allocated;
-        addr_aligned   = (kmp_uintptr_t) descr.ptr_aligned;
+    KMP_DEBUG_ASSERT( addr_aligned % CACHE_LINE == 0 );
+    KMP_DEBUG_ASSERT( descr.ptr_aligned == ptr );
+    KMP_DEBUG_ASSERT( addr_allocated + sizeof( kmp_mem_descr_t ) <= addr_aligned );
+    KMP_DEBUG_ASSERT( descr.size_aligned < descr.size_allocated );
+    KMP_DEBUG_ASSERT( addr_aligned + descr.size_aligned <= addr_allocated + descr.size_allocated );
 
-        KMP_DEBUG_ASSERT( addr_aligned % CACHE_LINE == 0 );
-        KMP_DEBUG_ASSERT( descr.ptr_aligned == ptr );
-        KMP_DEBUG_ASSERT( addr_allocated + sizeof( kmp_mem_descr_t ) <= addr_aligned );
-        KMP_DEBUG_ASSERT( descr.size_aligned < descr.size_allocated );
-        KMP_DEBUG_ASSERT( addr_aligned + descr.size_aligned <= addr_allocated + descr.size_allocated );
+    #ifdef KMP_DEBUG
+        memset( descr.ptr_allocated, 0xEF, descr.size_allocated );
+            // Fill memory block with 0xEF, it helps catch using freed memory.
+    #endif
 
-        #ifdef KMP_DEBUG
-            memset( descr.ptr_allocated, 0xEF, descr.size_allocated );
-                // Fill memory block with 0xEF, it helps catch using freed memory.
-        #endif
-
-        #ifndef LEAK_MEMORY
-            KE_TRACE( 10, ( "   free( %p )\n", descr.ptr_allocated ) );
-        # ifdef KMP_DEBUG
-            _free_src_loc( descr.ptr_allocated, _file_, _line_ );
-        # else
-            free_src_loc( descr.ptr_allocated KMP_SRC_LOC_PARM );
-        # endif
-        #endif
-
+    #ifndef LEAK_MEMORY
+        KE_TRACE( 10, ( "   free( %p )\n", descr.ptr_allocated ) );
+    # ifdef KMP_DEBUG
+        _free_src_loc( descr.ptr_allocated, _file_, _line_ );
+    # else
+        free_src_loc( descr.ptr_allocated KMP_SRC_LOC_PARM );
+    # endif
+    #endif
     KMP_MB();
-
     KE_TRACE( 25, ( "<- __kmp_free() returns\n" ) );
-
 } // func ___kmp_free
 
 /* ------------------------------------------------------------------------ */

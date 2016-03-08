@@ -4,7 +4,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -122,7 +122,7 @@
 #if KMP_OS_WINDOWS
     #include <malloc.h>        // Windows* OS: _alloca() declared in "malloc.h".
     #define alloca _alloca     // Allow to use alloca() with no underscore.
-#elif KMP_OS_FREEBSD
+#elif KMP_OS_FREEBSD || KMP_OS_NETBSD
     // Declared in "stdlib.h".
 #elif KMP_OS_UNIX
     #include <alloca.h>        // Linux* OS and OS X*: alloc() declared in "alloca".

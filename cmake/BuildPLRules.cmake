@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@
 #                                                    |
 #                                                 ${objs} (always compiled with -g)
 #
-# For icc Linux builds, we always include debugging information via -g and create libomp.dbg 
+# For icc Linux builds, we always include debugging information via -g and create libomp.dbg
 # so that Intel(R) Parallel Amplifier can use the .dbg file.
 # For icc Windows builds, we always include debugging information via -Zi and create libomp.pdb
 # in a fashion similar to libomp.dbg
@@ -61,7 +61,7 @@
 file(MAKE_DIRECTORY ${build_dir}/unstripped)
 
 # Only build the .dbg file for Release builds
-# Debug and RelWithDebInfo builds should not create a .dbg file.  
+# Debug and RelWithDebInfo builds should not create a .dbg file.
 # The debug info should remain in the library file.
 if(${LINUX} AND ${RELEASE_BUILD})
     set(dbg_file ${lib_item}.dbg)
@@ -70,7 +70,7 @@ endif()
 ################################
 # --- Create $(lib_file).dbg ---
 if(NOT "${dbg_file}" STREQUAL "")
-    # if a ${dbg_file} file is going to be created, then 
+    # if a ${dbg_file} file is going to be created, then
     file(MAKE_DIRECTORY ${build_dir}/stripped)
 
     # ./${lib_file} : stripped/${lib_file}
@@ -95,10 +95,10 @@ if(NOT "${dbg_file}" STREQUAL "")
     #     objcopy --only-keep-debug unstripped/${lib_file} unstripped/${dbg_file}
     add_custom_command(
         OUTPUT  ${build_dir}/unstripped/${dbg_file}
-        COMMAND ${CMAKE_OBJCOPY} --only-keep-debug ${build_dir}/unstripped/${lib_file} ${build_dir}/unstripped/${dbg_file} 
+        COMMAND ${CMAKE_OBJCOPY} --only-keep-debug ${build_dir}/unstripped/${lib_file} ${build_dir}/unstripped/${dbg_file}
         DEPENDS omp
     )
-    
+
 else()
 
     # ./${lib_file} : unstripped/${lib_file}
@@ -115,8 +115,8 @@ if(NOT "${pdb_file}" STREQUAL "" AND ${RELEASE_BUILD})
 endif()
 
 # Have icc build libomp in unstripped directory
-set_target_properties(omp PROPERTIES 
-    LIBRARY_OUTPUT_DIRECTORY "${build_dir}/unstripped" 
+set_target_properties(omp PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${build_dir}/unstripped"
     RUNTIME_OUTPUT_DIRECTORY "${build_dir}/unstripped"
     ARCHIVE_OUTPUT_DIRECTORY "${build_dir}"
 )

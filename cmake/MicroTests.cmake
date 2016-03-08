@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -30,10 +30,10 @@
 
 ######################################################
 # MICRO TESTS
-# The following micro-tests are small tests to perform on 
+# The following micro-tests are small tests to perform on
 # the library just created in ${CMAKE_CURRENT_BINARY_DIR}/, there are currently
-# five micro-tests: 
-# (1) test-touch 
+# five micro-tests:
+# (1) test-touch
 #    - Compile and run a small program using newly created libomp library
 #    - Fails if test-touch.c does not compile or if test-touch.c does not run after compilation
 #    - Program dependencies: gcc or g++, grep, bourne shell
@@ -43,17 +43,17 @@
 #    - Fails if TEXTREL is in output of readelf -d libomp.so command
 #    - Program dependencies: readelf, grep, bourne shell
 #    - Available for Linux, Intel(R) MIC Architecture dynamic library builds. Not available otherwise.
-# (3) test-execstack 
+# (3) test-execstack
 #    - Tests if stack is executable
 #    - Fails if stack is executable. Should only be readable and writable. Not exectuable.
 #    - Program dependencies: perl, readelf
 #    - Available for Linux dynamic library builds. Not available otherwise.
-# (4) test-instr (Intel(R) MIC Architecutre only) 
+# (4) test-instr (Intel(R) MIC Architecutre only)
 #    - Tests Intel(R) MIC Architecture libraries for valid instruction set
 #    - Fails if finds invalid instruction for Intel(R) MIC Architecture (wasn't compiled with correct flags)
-#    - Program dependencies: perl, objdump 
+#    - Program dependencies: perl, objdump
 #    - Available for Intel(R) MIC Architecture builds. Not available otherwise.
-# (5) test-deps      
+# (5) test-deps
 #    - Tests newly created libomp for library dependencies
 #    - Fails if sees a dependence not listed in td_exp variable below
 #    - Program dependencies: perl, (linux)readelf, (mac)otool[64], (windows)link.exe
@@ -114,6 +114,11 @@ else() # (Unix based systems, Intel(R) MIC Architecture, and Mac)
         list(APPEND tt-c-flags -m64)
     endif()
     list(APPEND tt-libs ${CMAKE_CURRENT_BINARY_DIR}/${lib_file})
+    if(${LIBOMP_USE_HWLOC})
+        list(APPEND tt-libs "${LIBOMP_HWLOC_LIBRARY}")
+        list(APPEND tt-ld-flags "-Wl,-rpath,${LIBOMP_HWLOC_LIBRARY_DIR}")
+    endif()
+    list(APPEND tt-libs ${CMAKE_CURRENT_BINARY_DIR}/${lib_file})
     if(${MAC})
         list(APPEND tt-ld-flags-v -Wl,-t)
         set(tt-env "DYLD_LIBRARY_PATH=.:$ENV{DYLD_LIBRARY_PATH}")
@@ -156,13 +161,13 @@ else()
     test_touch_recipe(test-touch-rt)
 endif()
 
-# test-relo 
+# test-relo
 add_custom_target(libomp-test-relo DEPENDS test-relo/.success)
 add_custom_command(
     OUTPUT  test-relo/.success
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/test-relo
     COMMAND readelf -d ${CMAKE_CURRENT_BINARY_DIR}/${lib_file} > test-relo/readelf.log
-    COMMAND grep -e TEXTREL test-relo/readelf.log \; [ $$? -eq 1 ]
+    COMMAND grep -e TEXTREL test-relo/readelf.log \; test $$? -eq 1
     COMMAND ${CMAKE_COMMAND} -E touch test-relo/.success
     DEPENDS omp
 )
@@ -190,8 +195,10 @@ add_custom_command(
 # test-deps
 add_custom_target(libomp-test-deps DEPENDS test-deps/.success)
 set(td_exp)
-if(${FREEBSD})
+if(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
     set(td_exp libc.so.7 libthr.so.3 libunwind.so.5)
+elseif(CMAKE_SYSTEM_NAME MATCHES "NetBSD")
+  set(libomp_expected_library_deps libc.so.12 libpthread.so.1 libm.so.0)
 elseif(${MAC})
     set(td_exp /usr/lib/libSystem.B.dylib)
 elseif(${WINDOWS})
@@ -210,16 +217,19 @@ elseif(${LINUX})
     else()
     set(td_exp libdl.so.2,libgcc_s.so.1)
     if(${IA32})
-        set(td_exp ${td_exp},libc.so.6,ld-linux.so.2)  
+        set(td_exp ${td_exp},libc.so.6,ld-linux.so.2)
     elseif(${INTEL64})
-        set(td_exp ${td_exp},libc.so.6,ld-linux-x86-64.so.2)  
+        set(td_exp ${td_exp},libc.so.6,ld-linux-x86-64.so.2)
     elseif(${ARM})
-        set(td_exp ${td_exp},libffi.so.6,libffi.so.5,libc.so.6,ld-linux-armhf.so.3)  
+        set(td_exp ${td_exp},libffi.so.6,libffi.so.5,libc.so.6,ld-linux-armhf.so.3)
     elseif(${PPC64})
-        set(td_exp ${td_exp},libc.so.6,ld64.so.1)  
+        set(td_exp ${td_exp},libc.so.6,ld64.so.1)
     endif()
     if(${STD_CPP_LIB})
         set(td_exp ${td_exp},libstdc++.so.6)
+    endif()
+    if(${LIBOMP_USE_HWLOC})
+        set(td_exp ${td_exp},libhwloc.so.5)
     endif()
     if(NOT ${STUBS_LIBRARY})
         set(td_exp ${td_exp},libpthread.so.0)

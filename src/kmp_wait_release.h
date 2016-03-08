@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -105,8 +105,9 @@ class kmp_flag {
 /* Spin wait loop that first does pause, then yield, then sleep. A thread that calls __kmp_wait_*
    must make certain that another thread calls __kmp_release to wake it back up to prevent deadlocks!  */
 template <class C>
-static inline void __kmp_wait_template(kmp_info_t *this_thr, C *flag, int final_spin
-                                       USE_ITT_BUILD_ARG(void * itt_sync_obj) )
+static inline void
+__kmp_wait_template(kmp_info_t *this_thr, C *flag, int final_spin
+                    USE_ITT_BUILD_ARG(void * itt_sync_obj) )
 {
     // NOTE: We may not belong to a team at this point.
     volatile typename C::flag_t *spin = flag->get();
@@ -124,15 +125,17 @@ static inline void __kmp_wait_template(kmp_info_t *this_thr, C *flag, int final_
     KA_TRACE(20, ("__kmp_wait_sleep: T#%d waiting for flag(%p)\n", th_gtid, flag));
 
 #if OMPT_SUPPORT && OMPT_BLAME
-    if (ompt_status == ompt_status_track_callback) {
-        if (this_thr->th.ompt_thread_info.state == ompt_state_idle){
+    ompt_state_t ompt_state = this_thr->th.ompt_thread_info.state;
+    if (ompt_enabled &&
+        ompt_state != ompt_state_undefined) {
+        if (ompt_state == ompt_state_idle) {
             if (ompt_callbacks.ompt_callback(ompt_event_idle_begin)) {
                 ompt_callbacks.ompt_callback(ompt_event_idle_begin)(th_gtid + 1);
             }
         } else if (ompt_callbacks.ompt_callback(ompt_event_wait_barrier_begin)) {
-            KMP_DEBUG_ASSERT(this_thr->th.ompt_thread_info.state == ompt_state_wait_barrier ||
-                             this_thr->th.ompt_thread_info.state == ompt_state_wait_barrier_implicit ||
-                             this_thr->th.ompt_thread_info.state == ompt_state_wait_barrier_explicit);
+            KMP_DEBUG_ASSERT(ompt_state == ompt_state_wait_barrier ||
+                             ompt_state == ompt_state_wait_barrier_implicit ||
+                             ompt_state == ompt_state_wait_barrier_explicit);
 
             ompt_lw_taskteam_t* team = this_thr->th.th_team->t.ompt_serialized_team_info;
             ompt_parallel_id_t pId;
@@ -181,99 +184,98 @@ static inline void __kmp_wait_template(kmp_info_t *this_thr, C *flag, int final_
     KMP_MB();
 
     // Main wait spin loop
-
-    {
-        while (flag->notdone_check()) {
-            int in_pool;
-            /* If the task team is NULL, it means one of things:
-               1) A newly-created thread is first being released by __kmp_fork_barrier(), and
-                  its task team has not been set up yet.
-               2) All tasks have been executed to completion, this thread has decremented the task
-                  team's ref ct and possibly deallocated it, and should no longer reference it.
-               3) Tasking is off for this region.  This could be because we are in a serialized region
-                  (perhaps the outer one), or else tasking was manually disabled (KMP_TASKING=0).  */
-            kmp_task_team_t * task_team = NULL;
-            if (__kmp_tasking_mode != tskm_immediate_exec) {
-                task_team = this_thr->th.th_task_team;
-                if (task_team != NULL) {
-                    if (!TCR_SYNC_4(task_team->tt.tt_active)) {
-                        KMP_DEBUG_ASSERT(!KMP_MASTER_TID(this_thr->th.th_info.ds.ds_tid));
-                        __kmp_unref_task_team(task_team, this_thr);
-                    } else if (KMP_TASKING_ENABLED(task_team)) {
+    while (flag->notdone_check()) {
+        int in_pool;
+        kmp_task_team_t * task_team = NULL;
+        if (__kmp_tasking_mode != tskm_immediate_exec) {
+            task_team = this_thr->th.th_task_team;
+            /* If the thread's task team pointer is NULL, it means one of 3 things:
+	       1) A newly-created thread is first being released by __kmp_fork_barrier(), and
+	          its task team has not been set up yet.
+	       2) All tasks have been executed to completion.
+	       3) Tasking is off for this region.  This could be because we are in a serialized region
+	          (perhaps the outer one), or else tasking was manually disabled (KMP_TASKING=0).  */
+            if (task_team != NULL) {
+                if (TCR_SYNC_4(task_team->tt.tt_active)) {
+                    if (KMP_TASKING_ENABLED(task_team))
                         flag->execute_tasks(this_thr, th_gtid, final_spin, &tasks_completed
                                             USE_ITT_BUILD_ARG(itt_sync_obj), 0);
-                    }
-                } // if
+                }
+                else {
+                    KMP_DEBUG_ASSERT(!KMP_MASTER_TID(this_thr->th.th_info.ds.ds_tid));
+                    this_thr->th.th_task_team = NULL;
+                }
             } // if
+        } // if
 
-            KMP_FSYNC_SPIN_PREPARE(spin);
-            if (TCR_4(__kmp_global.g.g_done)) {
-                if (__kmp_global.g.g_abort)
-                    __kmp_abort_thread();
-                break;
-            }
-
-            // If we are oversubscribed, or have waited a bit (and KMP_LIBRARY=throughput), then yield
-            KMP_YIELD(TCR_4(__kmp_nth) > __kmp_avail_proc);
-            // TODO: Should it be number of cores instead of thread contexts? Like:
-            // KMP_YIELD(TCR_4(__kmp_nth) > __kmp_ncores);
-            // Need performance improvement data to make the change...
-            KMP_YIELD_SPIN(spins);
-
-            // Check if this thread was transferred from a team
-            // to the thread pool (or vice-versa) while spinning.
-            in_pool = !!TCR_4(this_thr->th.th_in_pool);
-            if (in_pool != !!this_thr->th.th_active_in_pool) {
-                if (in_pool) { // Recently transferred from team to pool
-                    KMP_TEST_THEN_INC32((kmp_int32 *)&__kmp_thread_pool_active_nth);
-                    this_thr->th.th_active_in_pool = TRUE;
-                    /* Here, we cannot assert that:
-                       KMP_DEBUG_ASSERT(TCR_4(__kmp_thread_pool_active_nth) <= __kmp_thread_pool_nth);
-                       __kmp_thread_pool_nth is inc/dec'd by the master thread while the fork/join
-                       lock is held, whereas __kmp_thread_pool_active_nth is inc/dec'd asynchronously
-                       by the workers.  The two can get out of sync for brief periods of time.  */
-                }
-                else { // Recently transferred from pool to team
-                    KMP_TEST_THEN_DEC32((kmp_int32 *) &__kmp_thread_pool_active_nth);
-                    KMP_DEBUG_ASSERT(TCR_4(__kmp_thread_pool_active_nth) >= 0);
-                    this_thr->th.th_active_in_pool = FALSE;
-                }
-            }
-
-            // Don't suspend if KMP_BLOCKTIME is set to "infinite"
-            if (__kmp_dflt_blocktime == KMP_MAX_BLOCKTIME)
-                continue;
-
-            // Don't suspend if there is a likelihood of new tasks being spawned.
-            if ((task_team != NULL) && TCR_4(task_team->tt.tt_found_tasks))
-                continue;
-
-            // If we have waited a bit more, fall asleep
-            if (TCR_4(__kmp_global.g.g_time.dt.t_value) < hibernate)
-                continue;
-
-            KF_TRACE(50, ("__kmp_wait_sleep: T#%d suspend time reached\n", th_gtid));
-            flag->suspend(th_gtid);
-
-            if (TCR_4(__kmp_global.g.g_done)) {
-                if (__kmp_global.g.g_abort)
-                    __kmp_abort_thread();
-                break;
-            }
-            // TODO: If thread is done with work and times out, disband/free
+        KMP_FSYNC_SPIN_PREPARE(spin);
+        if (TCR_4(__kmp_global.g.g_done)) {
+            if (__kmp_global.g.g_abort)
+                __kmp_abort_thread();
+            break;
         }
+
+        // If we are oversubscribed, or have waited a bit (and KMP_LIBRARY=throughput), then yield
+        KMP_YIELD(TCR_4(__kmp_nth) > __kmp_avail_proc);
+        // TODO: Should it be number of cores instead of thread contexts? Like:
+        // KMP_YIELD(TCR_4(__kmp_nth) > __kmp_ncores);
+        // Need performance improvement data to make the change...
+        KMP_YIELD_SPIN(spins);
+        // Check if this thread was transferred from a team
+        // to the thread pool (or vice-versa) while spinning.
+        in_pool = !!TCR_4(this_thr->th.th_in_pool);
+        if (in_pool != !!this_thr->th.th_active_in_pool) {
+            if (in_pool) { // Recently transferred from team to pool
+                KMP_TEST_THEN_INC32((kmp_int32 *)&__kmp_thread_pool_active_nth);
+                this_thr->th.th_active_in_pool = TRUE;
+                /* Here, we cannot assert that:
+                   KMP_DEBUG_ASSERT(TCR_4(__kmp_thread_pool_active_nth) <= __kmp_thread_pool_nth);
+                   __kmp_thread_pool_nth is inc/dec'd by the master thread while the fork/join
+                   lock is held, whereas __kmp_thread_pool_active_nth is inc/dec'd asynchronously
+                   by the workers.  The two can get out of sync for brief periods of time.  */
+            }
+            else { // Recently transferred from pool to team
+                KMP_TEST_THEN_DEC32((kmp_int32 *) &__kmp_thread_pool_active_nth);
+                KMP_DEBUG_ASSERT(TCR_4(__kmp_thread_pool_active_nth) >= 0);
+                this_thr->th.th_active_in_pool = FALSE;
+            }
+        }
+
+        // Don't suspend if KMP_BLOCKTIME is set to "infinite"
+        if (__kmp_dflt_blocktime == KMP_MAX_BLOCKTIME)
+            continue;
+
+        // Don't suspend if there is a likelihood of new tasks being spawned.
+        if ((task_team != NULL) && TCR_4(task_team->tt.tt_found_tasks))
+            continue;
+
+        // If we have waited a bit more, fall asleep
+        if (TCR_4(__kmp_global.g.g_time.dt.t_value) < hibernate)
+            continue;
+
+        KF_TRACE(50, ("__kmp_wait_sleep: T#%d suspend time reached\n", th_gtid));
+
+        flag->suspend(th_gtid);
+
+        if (TCR_4(__kmp_global.g.g_done)) {
+            if (__kmp_global.g.g_abort)
+                __kmp_abort_thread();
+            break;
+        }
+        // TODO: If thread is done with work and times out, disband/free
     }
 
 #if OMPT_SUPPORT && OMPT_BLAME
-    if (ompt_status == ompt_status_track_callback) {
-        if (this_thr->th.ompt_thread_info.state == ompt_state_idle){
+    if (ompt_enabled &&
+        ompt_state != ompt_state_undefined) {
+        if (ompt_state == ompt_state_idle) {
             if (ompt_callbacks.ompt_callback(ompt_event_idle_end)) {
                 ompt_callbacks.ompt_callback(ompt_event_idle_end)(th_gtid + 1);
             }
         } else if (ompt_callbacks.ompt_callback(ompt_event_wait_barrier_end)) {
-            KMP_DEBUG_ASSERT(this_thr->th.ompt_thread_info.state == ompt_state_wait_barrier ||
-                             this_thr->th.ompt_thread_info.state == ompt_state_wait_barrier_implicit ||
-                             this_thr->th.ompt_thread_info.state == ompt_state_wait_barrier_explicit);
+            KMP_DEBUG_ASSERT(ompt_state == ompt_state_wait_barrier ||
+                             ompt_state == ompt_state_wait_barrier_implicit ||
+                             ompt_state == ompt_state_wait_barrier_explicit);
 
             ompt_lw_taskteam_t* team = this_thr->th.th_team->t.ompt_serialized_team_info;
             ompt_parallel_id_t pId;
@@ -297,7 +299,8 @@ static inline void __kmp_wait_template(kmp_info_t *this_thr, C *flag, int final_
    if indicated by the sleep bit(s). A thread that calls __kmp_wait_template must call this function to wake
    up the potentially sleeping thread and prevent deadlocks!  */
 template <class C>
-static inline void __kmp_release_template(C *flag)
+static inline void
+__kmp_release_template(C *flag)
 {
 #ifdef KMP_DEBUG
     int gtid = TCR_4(__kmp_init_gtid) ? __kmp_get_gtid() : -1;
@@ -453,6 +456,7 @@ class kmp_flag_32 : public kmp_basic_flag<kmp_uint32> {
                             USE_ITT_BUILD_ARG(itt_sync_obj));
     }
     void release() { __kmp_release_template(this); }
+    flag_type get_ptr_type() { return flag32; }
 };
 
 class kmp_flag_64 : public kmp_basic_flag<kmp_uint64> {
@@ -473,6 +477,7 @@ class kmp_flag_64 : public kmp_basic_flag<kmp_uint64> {
                             USE_ITT_BUILD_ARG(itt_sync_obj));
     }
     void release() { __kmp_release_template(this); }
+    flag_type get_ptr_type() { return flag64; }
 };
 
 // Hierarchical 64-bit on-core barrier instantiation
@@ -566,6 +571,7 @@ public:
     }
     kmp_uint8 *get_stolen() { return NULL; }
     enum barrier_type get_bt() { return bt; }
+    flag_type get_ptr_type() { return flag_oncore; }
 };
 
 

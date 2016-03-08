@@ -10,7 +10,7 @@
 #
 #
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -240,6 +240,9 @@ sub target_options() {
     } elsif ( $operating_system eq "GNU/Linux" ) {
         $_host_os = "lin";
     } elsif ( $operating_system eq "FreeBSD" ) {
+        # Host OS resembles Linux.
+        $_host_os = "lin";
+    } elsif ( $operating_system eq "NetBSD" ) {
         # Host OS resembles Linux.
         $_host_os = "lin";
     } elsif ( $operating_system eq "Darwin" ) {

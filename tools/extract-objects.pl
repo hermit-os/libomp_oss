@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -54,10 +54,14 @@ sub windows {
     my ( $arch, $output, @args ) = @_;
     my %files;
     # TODO: Check the archives are of specified architecture.
+    my $cwd = Cwd::cwd();
     foreach my $arg ( @args ) {
         foreach my $archive ( bsd_glob( $arg ) ) {
             info( "Processing \"$archive\"..." );
             my $bulk;
+            # the abs_path() command will create an archive path which is compatible
+            # in Windows in any environment (bash shell or cmd.exe shell)
+            $archive = abs_path( $archive, $cwd );
             execute( [ "lib.exe", "/nologo", "/list", $archive ], -stdout => \$bulk );
             my @members = split( "\n", $bulk );
             foreach my $member ( @members ) {

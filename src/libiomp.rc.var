@@ -1,7 +1,7 @@
 // libiomp.rc.var
 
 // <copyright>
-//    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+//    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 //
 //    Redistribution and use in source and binary forms, with or without
 //    modification, are permitted provided that the following conditions
@@ -38,16 +38,16 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US    // English (U.S.) resources
 VS_VERSION_INFO VERSIONINFO
     // Parts of FILEVERSION and PRODUCTVERSION are 16-bit fields, entire build date yyyymmdd
     // does not fit into one version part, so we need to split it into yyyy and mmdd:
-    FILEVERSION    $KMP_VERSION_MAJOR,$KMP_VERSION_MINOR,${{ our $KMP_VERSION_BUILD; int( $KMP_VERSION_BUILD / 10000 ) . "," . ( $KMP_VERSION_BUILD % 10000 ) }}
-    PRODUCTVERSION $KMP_VERSION_MAJOR,$KMP_VERSION_MINOR,${{ our $KMP_VERSION_BUILD; int( $KMP_VERSION_BUILD / 10000 ) . "," . ( $KMP_VERSION_BUILD % 10000 ) }}
+    FILEVERSION    @KMP_VERSION_MAJOR@,@KMP_VERSION_MINOR@,@KMP_VERSION_BUILD_YEAR@,@KMP_VERSION_BUILD_MONTH_DAY@
+    PRODUCTVERSION @KMP_VERSION_MAJOR@,@KMP_VERSION_MINOR@,@KMP_VERSION_BUILD_YEAR@,@KMP_VERSION_BUILD_MONTH_DAY@
     FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
     FILEFLAGS      0
-    #if $KMP_DIAG || $KMP_DEBUG_INFO
+#if @KMP_DIAG@ || @KMP_DEBUG_INFO@
         | VS_FF_DEBUG
-    #endif
-    #if $KMP_VERSION_BUILD == 0
+#endif
+#if @KMP_VERSION_BUILD@ == 0
         | VS_FF_PRIVATEBUILD | VS_FF_PRERELEASE
-    #endif
+#endif
     FILEOS          VOS_NT_WINDOWS32    // Windows* Server* 2003, XP*, 2000, or NT*
     FILETYPE        VFT_DLL
     BEGIN
@@ -57,31 +57,31 @@ VS_VERSION_INFO VERSIONINFO
             BEGIN
 
                 // FileDescription and LegalCopyright should be short.
-                VALUE "FileDescription",  "Intel(R) OpenMP* Runtime Library${{ our $MESSAGE_CATALOG; $MESSAGE_CATALOG ? " Message Catalog" : "" }}\0"
+                VALUE "FileDescription",  "Intel(R) OpenMP* Runtime Library\0"
                 // Following values may be relatively long.
                 VALUE "CompanyName",      "Intel Corporation\0"
                 // VALUE "LegalTrademarks",  "\0"  // Not used for now.
                 VALUE "ProductName",      "Intel(R) OpenMP* Runtime Library\0"
-                VALUE "ProductVersion",   "$KMP_VERSION_MAJOR.$KMP_VERSION_MINOR\0"
-                VALUE "FileVersion",      "$KMP_VERSION_BUILD\0"
-                VALUE "InternalName",     "$KMP_FILE\0"
-                VALUE "OriginalFilename", "$KMP_FILE\0"
+                VALUE "ProductVersion",   "@KMP_VERSION_MAJOR@.@KMP_VERSION_MINOR@\0"
+                VALUE "FileVersion",      "@KMP_VERSION_BUILD@\0"
+                VALUE "InternalName",     "@KMP_FILE@\0"
+                VALUE "OriginalFilename", "@KMP_FILE@\0"
                 VALUE "Comments",
-                    "Intel(R) OpenMP* ${{ our ( $MESSAGE_CATALOG, $KMP_TYPE ); $MESSAGE_CATALOG ? "Runtime Library Message Catalog" : "$KMP_TYPE Library" }} "
-                    "version $KMP_VERSION_MAJOR.$KMP_VERSION_MINOR.$KMP_VERSION_BUILD "
-                    "for $KMP_ARCH architecture built on $KMP_BUILD_DATE.\0"
-                #if $KMP_VERSION_BUILD == 0
+                    "Intel(R) OpenMP* @KMP_TYPE@ Library "
+                    "version @KMP_VERSION_MAJOR@.@KMP_VERSION_MINOR@.@KMP_VERSION_BUILD@ "
+                    "for @KMP_ARCH@ architecture built on @KMP_BUILD_DATE@.\0"
+#if @KMP_VERSION_BUILD@ == 0
                     VALUE "PrivateBuild",
                         "This is a development build for internal testing purposes only. "
                         "Do not distribute it outside of Intel.\0"
-                #endif
+#endif
                 // VALUE "SpecialBuild",     "\0"    // Not used for now.
 
             END
         END
         BLOCK "VarFileInfo"
         BEGIN
-            VALUE "Translation", ${{ our ( $MESSAGE_CATALOG, $LANGUAGE ); $MESSAGE_CATALOG ? $LANGUAGE : 1033 }}, 1200
+            VALUE "Translation", 1033, 1200
             // 1033 -- U.S. English, 1200 -- Unicode
         END
     END

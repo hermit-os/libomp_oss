@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -47,7 +47,7 @@ function(get_architecture return_arch)
         #error ARCHITECTURE=arm
     #elif defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5E__)  || defined(__ARM_ARCH_5TE__) || defined(__ARM_ARCH_5TEJ__)
         #error ARCHITECTURE=arm
-    #elif defined(__ARM_ARCH_4__) || defined(__ARM_ARCH_4T__) 
+    #elif defined(__ARM_ARCH_4__) || defined(__ARM_ARCH_4T__)
         #error ARCHITECTURE=arm
     #elif defined(__ARM_ARCH_3__) || defined(__ARM_ARCH_3M__)
         #error ARCHITECTURE=arm
@@ -67,7 +67,7 @@ function(get_architecture return_arch)
     "
     )
     # Write out ${detect_arch_src_txt} to a file within the cmake/ subdirectory
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/detect_arch.c" ${detect_arch_src_txt}) 
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/detect_arch.c" ${detect_arch_src_txt})
 
     # Try to compile using the C Compiler.  It will always error out with an #error directive, so store error output to ${local_architecture}
     try_run(run_dummy compile_dummy "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/detect_arch.c" COMPILE_OUTPUT_VARIABLE local_architecture)

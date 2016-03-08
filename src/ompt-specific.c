@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -79,6 +79,8 @@ __ompt_get_teaminfo(int depth, int *size)
 
     if (thr) {
         kmp_team *team = thr->th.th_team;
+        if (team == NULL) return NULL;
+
         ompt_lw_taskteam_t *lwt = LWT_FROM_TEAM(team);
 
         while(depth > 0) {
@@ -151,39 +153,6 @@ __ompt_get_taskinfo(int depth)
 //******************************************************************************
 // interface operations
 //******************************************************************************
-
-//----------------------------------------------------------
-// initialization support
-//----------------------------------------------------------
-
-void
-__ompt_init_internal()
-{
-    if (ompt_status & ompt_status_track) {
-        // initialize initial thread for OMPT
-        kmp_info_t *root_thread = ompt_get_thread();
-        __kmp_task_init_ompt(
-            root_thread->th.th_team->t.t_implicit_task_taskdata, 0);
-        __kmp_task_init_ompt(
-            root_thread->th.th_serial_team->t.t_implicit_task_taskdata, 0);
-
-        // make mandatory callback for creation of initial thread
-        // this needs to occur here rather than in __kmp_register_root because
-        // __kmp_register_root is called before ompt_initialize
-        int gtid = __kmp_get_gtid();
-        if (KMP_UBER_GTID(gtid)) {
-            // initialize the initial thread's idle frame and state
-            root_thread->th.ompt_thread_info.idle_frame = 0;
-            root_thread->th.ompt_thread_info.state = ompt_state_overhead;
-            if ((ompt_status == ompt_status_track_callback) &&
-                ompt_callbacks.ompt_callback(ompt_event_thread_begin)) {
-                __ompt_thread_begin(ompt_thread_initial, gtid);
-            }
-            root_thread->th.ompt_thread_info.state = ompt_state_work_serial;
-        }
-    }
-}
-
 
 //----------------------------------------------------------
 // thread support
@@ -392,12 +361,3 @@ __ompt_team_assign_id(kmp_team_t *team, ompt_parallel_id_t ompt_pid)
 }
 
 
-//----------------------------------------------------------
-// runtime version support
-//----------------------------------------------------------
-
-const char *
-__ompt_get_runtime_version_internal()
-{
-    return &__kmp_version_lib_ver[KMP_VERSION_MAGIC_LEN];
-}

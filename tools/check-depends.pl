@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -124,6 +124,11 @@ sub get_deps_readelf($) {
         $tool = "readelf";
     }
 
+    # Force the readelf call to be in English. For example, when readelf
+    # is called on a french localization, it will find "Librairie partagees"
+    # instead of shared library
+    $ENV{ LANG } = "C";
+
     execute( [ $tool, "-d", $file ], -stdout => \@bulk );
     debug( @bulk, "(eof)" );
 
@@ -198,6 +203,8 @@ sub get_deps_otool($) {
         or parse_error( $tool, @bulk, $i );
     ++ $i;
     if ( $name =~ m{\.dylib\z} ) {
+        # Added "@rpath/" enables dynamic load of the library designated at link time.
+        $name = '@rpath/' . $name;
         # In case of dynamic library otool print the library itself as a dependent library.
         ( $i < @bulk and $bulk[ $i ] =~ m{^\s+\Q$name\E\s+\(compatibility version.*\)$} )
             or parse_error( $tool, @bulk, $i );

@@ -1,7 +1,7 @@
 ! include/41/iomp_lib.h.var
 
 ! <copyright>
-!    Copyright (c) 1985-2015 Intel Corporation.  All Rights Reserved.
+!    Copyright (c) 1985-2016 Intel Corporation.  All Rights Reserved.
 !
 !    Redistribution and use in source and binary forms, with or without
 !    modification, are permitted provided that the following conditions
@@ -36,11 +36,11 @@
 !*** omp_real_kind is not predefined, however.
 !***
 
-        integer, parameter :: kmp_version_major = $KMP_VERSION_MAJOR
-        integer, parameter :: kmp_version_minor = $KMP_VERSION_MINOR
-        integer, parameter :: kmp_version_build = $KMP_VERSION_BUILD
+        integer, parameter :: kmp_version_major = @KMP_VERSION_MAJOR@
+        integer, parameter :: kmp_version_minor = @KMP_VERSION_MINOR@
+        integer, parameter :: kmp_version_build = @KMP_VERSION_BUILD@
         character(*)          kmp_build_date
-        parameter( kmp_build_date = '$KMP_BUILD_DATE' )
+        parameter( kmp_build_date = '@KMP_BUILD_DATE@' )
 
         integer, parameter :: omp_real_kind = 4
 
@@ -48,9 +48,9 @@
 !*** kmp_* type extensions
 !***
 
-        integer, parameter :: kmp_pointer_kind       = $KMP_INT_PTR_KIND
-        integer, parameter :: kmp_size_t_kind        = $KMP_INT_PTR_KIND
-        integer, parameter :: kmp_affinity_mask_kind = $KMP_INT_PTR_KIND
+        integer, parameter :: kmp_pointer_kind       = @KMP_INT_PTR_KIND@
+        integer, parameter :: kmp_size_t_kind        = @KMP_INT_PTR_KIND@
+        integer, parameter :: kmp_affinity_mask_kind = @KMP_INT_PTR_KIND@
 
 !***
 !*** kmp_* entry points

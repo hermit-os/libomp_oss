@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -42,8 +42,6 @@
 #include "kmp_i18n.h"
 #include "kmp_io.h"
 
-
-static int __kmp_env_isDefined( char const * name );
 static int __kmp_env_toPrint( char const * name, int flag );
 
 bool __kmp_env_format = 0; // 0 - old format; 1 - new format
@@ -63,6 +61,7 @@ __kmp_convert_to_double( char const * s )
     return result;
 }
 
+#ifdef KMP_DEBUG
 static unsigned int
 __kmp_readstr_with_sentinel(char *dest, char const * src, size_t len, char sentinel) {
     unsigned int i;
@@ -75,6 +74,7 @@ __kmp_readstr_with_sentinel(char *dest, char const * src, size_t len, char senti
     *dest = '\0';
     return i;
 }
+#endif
 
 static int
 __kmp_match_with_sentinel( char const * a, char const * b, size_t len, char sentinel ) {
@@ -152,21 +152,6 @@ __kmp_match_str( char const *token, char const *buf, const char **end) {
     return TRUE;
 }
 
-static char *
-__kmp_strip_quotes( char *target, int len) {
-    char *end = target + len - 1;
-
-    while(*target == '"' || *target == '\'') {
-        if(end <= target || (*end != '"' && *end != '\''))
-            return NULL;
-        *end = 0;
-        --end;
-        *target = 0;
-        ++target;
-    }
-    return target;
-}
-
 
 static size_t
 __kmp_round4k( size_t size ) {
@@ -180,48 +165,6 @@ __kmp_round4k( size_t size ) {
     return size;
 } // __kmp_round4k
 
-
-static int
-__kmp_convert_to_seconds( char const * data )
-{
-    int nvalues, value, factor;
-    char mult, extra;
-
-    if (data == NULL) return (0);
-    value = 0;
-    mult = '\0';
-    nvalues = KMP_SSCANF (data, "%d%c%c", &value, &mult, &extra);
-    if (nvalues < 1) return (0);
-    if (nvalues == 1) mult = '\0';
-    if (nvalues == 3) return (-1);
-
-    switch (mult) {
-    case 's': case 'S':
-        factor = 1;
-        break;
-    case '\0':
-        factor = 60;
-        break;
-    case 'm': case 'M':
-        factor = 60;
-        break;
-    case 'h': case 'H':
-        factor = 60 * 60;
-        break;
-    case 'd': case 'D':
-        factor = 24 * 60 * 60;
-        break;
-    default:
-        return (-1);
-    }
-
-    if (value > (INT_MAX / factor))
-        value = INT_MAX;
-    else
-        value *= factor;
-
-    return value;
-}
 
 /*
     Here, multipliers are like __kmp_convert_to_seconds, but floating-point
@@ -275,58 +218,6 @@ __kmp_convert_to_milliseconds( char const * data )
 
     return ret;
 }
-
-static kmp_uint64
-__kmp_convert_to_nanoseconds(         // R: Time in nanoseconds, or ~0 in case of error.
-    char const * str                  // I: String representing time.
-) {
-
-    double     value;    // Parsed value.
-    char       unit;     // Unit: 's', 'm', 'u', or 'n'.
-    char       extra;    // Buffer for extra character (if any).
-    int        rc;       // Return code of sscanf().
-    double     factor;   // Numeric factor corresponding to unit.
-    kmp_uint64 result;
-
-    if ( str == NULL || str[ 0 ] == 0 ) {    // No string or empty string.
-        return 0;                            // Default value.
-    }; // if
-    rc = KMP_SSCANF( str, "%lf%c%c", &value, &unit, &extra );
-    switch ( rc ) {
-        case 0: {             // Value is not parsed.
-            return ~ 0;
-        } break;
-        case 1: {             // One value parsed, no unit is specified.
-            unit = 's';       // Use default unit.
-        } break;
-        case 2: {             // Value and unit are parsed.
-            // Do nothing.
-        } break;
-        case 3: {             // Extra characters is specified.
-            return ~ 0;
-        } break;
-    }; // switch
-    switch ( unit ) {
-        case 's': {
-            factor = 1.0E+9;
-        } break;
-        case 'm': {
-            factor = 1.0E+6;
-        } break;
-        case 'u': {
-            factor = 1.0E+3;
-        } break;
-        case 'n': {
-            factor = 1.0;
-        } break;
-        default: {                           // Illegal unit.
-            return ~ 0;                      // Return error.
-        } break;
-    }; // switch
-    result = (kmp_uint64)( value * factor );
-    return result;
-
-}; // func __kmp_convert_to_nanoseconds
 
 
 static int
@@ -479,6 +370,7 @@ __kmp_stg_parse_size(
     }; // if
 } // __kmp_stg_parse_size
 
+#if KMP_AFFINITY_SUPPORTED
 static void
 __kmp_stg_parse_str(
     char const *      name,
@@ -488,7 +380,7 @@ __kmp_stg_parse_str(
     KMP_INTERNAL_FREE( (void *) * out );
     * out = __kmp_str_format( "%s", value );
 } // __kmp_stg_parse_str
-
+#endif
 
 static void
 __kmp_stg_parse_int(
@@ -532,6 +424,7 @@ __kmp_stg_parse_int(
 } // __kmp_stg_parse_int
 
 
+#if KMP_DEBUG_ADAPTIVE_LOCKS
 static void
 __kmp_stg_parse_file(
     char const * name,
@@ -550,6 +443,7 @@ __kmp_stg_parse_file(
     KMP_INTERNAL_FREE(t);
     * out = __kmp_str_format( "%s", buffer );
 } // __kmp_stg_parse_file
+#endif
 
 #ifdef KMP_DEBUG
 static char * par_range_to_print = NULL;
@@ -837,6 +731,8 @@ __kmp_stg_print_inherit_fp_control( kmp_str_buf_t * buffer, char const * name, v
 // KMP_LIBRARY, OMP_WAIT_POLICY
 // -------------------------------------------------------------------------------------------------
 
+static char const *blocktime_str = NULL;
+
 static void
 __kmp_stg_parse_wait_policy( char const * name, char const * value, void * data ) {
 
@@ -850,9 +746,17 @@ __kmp_stg_parse_wait_policy( char const * name, char const * value, void * data 
 
     if ( wait->omp ) {
         if ( __kmp_str_match( "ACTIVE", 1, value ) ) {
-           __kmp_library = library_turnaround;
+            __kmp_library = library_turnaround;
+            if ( blocktime_str == NULL ) {
+                // KMP_BLOCKTIME not specified, so set default to "infinite".
+                __kmp_dflt_blocktime = KMP_MAX_BLOCKTIME;
+            }
         } else if ( __kmp_str_match( "PASSIVE", 1, value ) ) {
-           __kmp_library = library_throughput;
+            __kmp_library = library_throughput;
+            if ( blocktime_str == NULL ) {
+                // KMP_BLOCKTIME not specified, so set default to 0.
+                __kmp_dflt_blocktime = 0;
+            }
         } else {
             KMP_WARNING( StgInvalidValue, name, value );
         }; // if
@@ -1288,13 +1192,46 @@ __kmp_stg_print_task_stealing( kmp_str_buf_t * buffer, char const * name, void *
 
 static void
 __kmp_stg_parse_max_active_levels( char const * name, char const * value, void * data ) {
-	 __kmp_stg_parse_int( name, value, 0, KMP_MAX_ACTIVE_LEVELS_LIMIT, & __kmp_dflt_max_active_levels );
+    __kmp_stg_parse_int( name, value, 0, KMP_MAX_ACTIVE_LEVELS_LIMIT, & __kmp_dflt_max_active_levels );
 } // __kmp_stg_parse_max_active_levels
 
 static void
 __kmp_stg_print_max_active_levels( kmp_str_buf_t * buffer, char const * name, void * data ) {
     __kmp_stg_print_int( buffer, name, __kmp_dflt_max_active_levels );
 } // __kmp_stg_print_max_active_levels
+
+#if OMP_41_ENABLED
+// -------------------------------------------------------------------------------------------------
+// OpenMP 4.5: OMP_MAX_TASK_PRIORITY
+// -------------------------------------------------------------------------------------------------
+static void
+__kmp_stg_parse_max_task_priority(char const *name, char const *value, void *data) {
+    printf("BAZINGA!\n");
+    __kmp_stg_parse_int(name, value, 0, KMP_MAX_TASK_PRIORITY_LIMIT, &__kmp_max_task_priority);
+} // __kmp_stg_parse_max_task_priority
+
+static void
+__kmp_stg_print_max_task_priority(kmp_str_buf_t *buffer, char const *name, void *data) {
+    __kmp_stg_print_int(buffer, name, __kmp_max_task_priority);
+} // __kmp_stg_print_max_task_priority
+#endif // OMP_41_ENABLED
+
+// -------------------------------------------------------------------------------------------------
+// KMP_DISP_NUM_BUFFERS
+// -------------------------------------------------------------------------------------------------
+static void
+__kmp_stg_parse_disp_buffers( char const * name, char const * value, void * data ) {
+    if ( TCR_4(__kmp_init_serial) ) {
+        KMP_WARNING( EnvSerialWarn, name );
+        return;
+    }   // read value before serial initialization only
+    __kmp_stg_parse_int( name, value, 0, KMP_MAX_NTH, & __kmp_dispatch_num_buffers );
+} // __kmp_stg_parse_disp_buffers
+
+static void
+__kmp_stg_print_disp_buffers( kmp_str_buf_t * buffer, char const * name, void * data ) {
+    __kmp_stg_print_int( buffer, name, __kmp_dispatch_num_buffers );
+} // __kmp_stg_print_disp_buffers
 
 #if KMP_NESTED_HOT_TEAMS
 // -------------------------------------------------------------------------------------------------
@@ -1707,7 +1644,6 @@ static void
 __kmp_stg_print_force_reduction( kmp_str_buf_t * buffer, char const * name, void * data ) {
 
     kmp_stg_fr_data_t * reduction = (kmp_stg_fr_data_t *) data;
-    char const *        value = NULL;
     if ( reduction->force ) {
         if( __kmp_force_reduction_method == critical_reduce_block) {
             __kmp_stg_print_str( buffer, name, "critical");
@@ -3052,11 +2988,12 @@ __kmp_stg_parse_proc_bind( char const * name, char const * value, void * data )
             // OMP_PROC_BIND => granularity=core,scatter elsewhere
             //
             __kmp_affinity_type = affinity_scatter;
-            if( __kmp_mic_type != non_mic ) {
+#  if KMP_ARCH_X86_64 && (KMP_OS_LINUX || KMP_OS_WINDOWS)
+            if( __kmp_mic_type != non_mic )
                 __kmp_affinity_gran = affinity_gran_fine;
-            } else {
+            else
+#  endif
                 __kmp_affinity_gran = affinity_gran_core;
-            }
     }
     else {
         __kmp_affinity_type = affinity_none;
@@ -3134,6 +3071,11 @@ __kmp_stg_parse_topology_method( char const * name, char const * value,
     else if ( __kmp_str_match( "flat", 1, value ) ) {
         __kmp_affinity_top_method = affinity_top_method_flat;
     }
+# if KMP_USE_HWLOC
+    else if ( __kmp_str_match( "hwloc", 1, value) ) {
+        __kmp_affinity_top_method = affinity_top_method_hwloc;
+    }
+# endif
     else {
         KMP_WARNING( StgInvalidValue, name, value );
     }
@@ -3498,8 +3440,6 @@ __kmp_stg_print_ld_balance_interval( kmp_str_buf_t * buffer, char const * name, 
 } // __kmp_stg_print_load_balance_interval
 
 #endif /* USE_LOAD_BALANCE */
-
-
 
 // -------------------------------------------------------------------------------------------------
 // KMP_INIT_AT_FORK
@@ -3976,7 +3916,6 @@ __kmp_stg_print_gtid_mode( kmp_str_buf_t * buffer, char const * name, void * dat
     }
 } // __kmp_stg_print_gtid_mode
 
-
 // -------------------------------------------------------------------------------------------------
 // KMP_NUM_LOCKS_IN_BLOCK
 // -------------------------------------------------------------------------------------------------
@@ -3994,6 +3933,12 @@ __kmp_stg_print_lock_block( kmp_str_buf_t * buffer, char const * name, void * da
 // -------------------------------------------------------------------------------------------------
 // KMP_LOCK_KIND
 // -------------------------------------------------------------------------------------------------
+
+#if KMP_USE_DYNAMIC_LOCK
+# define KMP_STORE_LOCK_SEQ(a) (__kmp_user_lock_seq = lockseq_##a)
+#else
+# define KMP_STORE_LOCK_SEQ(a)
+#endif
 
 static void
 __kmp_stg_parse_lock_kind( char const * name, char const * value, void * data ) {
@@ -4014,13 +3959,13 @@ __kmp_stg_parse_lock_kind( char const * name, char const * value, void * data ) 
       || __kmp_str_match( "testand-set", 2, value )
       || __kmp_str_match( "testandset", 2, value ) ) {
         __kmp_user_lock_kind = lk_tas;
-        DYNA_STORE_LOCK_SEQ(tas);
+        KMP_STORE_LOCK_SEQ(tas);
     }
 #if KMP_OS_LINUX && (KMP_ARCH_X86 || KMP_ARCH_X86_64 || KMP_ARCH_ARM)
     else if ( __kmp_str_match( "futex", 1, value ) ) {
         if ( __kmp_futex_determine_capable() ) {
             __kmp_user_lock_kind = lk_futex;
-            DYNA_STORE_LOCK_SEQ(futex);
+            KMP_STORE_LOCK_SEQ(futex);
         }
         else {
             KMP_WARNING( FutexNotSupported, name, value );
@@ -4029,12 +3974,12 @@ __kmp_stg_parse_lock_kind( char const * name, char const * value, void * data ) 
 #endif
     else if ( __kmp_str_match( "ticket", 2, value ) ) {
         __kmp_user_lock_kind = lk_ticket;
-        DYNA_STORE_LOCK_SEQ(ticket);
+        KMP_STORE_LOCK_SEQ(ticket);
     }
     else if ( __kmp_str_match( "queuing", 1, value )
       || __kmp_str_match( "queue", 1, value ) ) {
         __kmp_user_lock_kind = lk_queuing;
-        DYNA_STORE_LOCK_SEQ(queuing);
+        KMP_STORE_LOCK_SEQ(queuing);
     }
     else if ( __kmp_str_match( "drdpa ticket", 1, value )
       || __kmp_str_match( "drdpa_ticket", 1, value )
@@ -4042,23 +3987,34 @@ __kmp_stg_parse_lock_kind( char const * name, char const * value, void * data ) 
       || __kmp_str_match( "drdpaticket", 1, value )
       || __kmp_str_match( "drdpa", 1, value ) ) {
         __kmp_user_lock_kind = lk_drdpa;
-        DYNA_STORE_LOCK_SEQ(drdpa);
+        KMP_STORE_LOCK_SEQ(drdpa);
     }
 #if KMP_USE_ADAPTIVE_LOCKS
     else if ( __kmp_str_match( "adaptive", 1, value )  ) {
         if( __kmp_cpuinfo.rtm ) { // ??? Is cpuinfo available here?
             __kmp_user_lock_kind = lk_adaptive;
-            DYNA_STORE_LOCK_SEQ(adaptive);
+            KMP_STORE_LOCK_SEQ(adaptive);
         } else {
             KMP_WARNING( AdaptiveNotSupported, name, value );
             __kmp_user_lock_kind = lk_queuing;
-            DYNA_STORE_LOCK_SEQ(queuing);
+            KMP_STORE_LOCK_SEQ(queuing);
         }
     }
 #endif // KMP_USE_ADAPTIVE_LOCKS
-#if KMP_USE_DYNAMIC_LOCK
+#if KMP_USE_DYNAMIC_LOCK && KMP_USE_TSX
+    else if ( __kmp_str_match("rtm", 1, value) ) {
+        if ( __kmp_cpuinfo.rtm ) {
+            __kmp_user_lock_kind = lk_rtm;
+            KMP_STORE_LOCK_SEQ(rtm);
+        } else {
+            KMP_WARNING( AdaptiveNotSupported, name, value );
+            __kmp_user_lock_kind = lk_queuing;
+            KMP_STORE_LOCK_SEQ(queuing);
+        }
+    }
     else if ( __kmp_str_match("hle", 1, value) ) {
-        DYNA_STORE_LOCK_SEQ(hle);
+        __kmp_user_lock_kind = lk_hle;
+        KMP_STORE_LOCK_SEQ(hle);
     }
 #endif
     else {
@@ -4085,6 +4041,16 @@ __kmp_stg_print_lock_kind( kmp_str_buf_t * buffer, char const * name, void * dat
         break;
 #endif
 
+#if KMP_USE_DYNAMIC_LOCK && KMP_USE_TSX
+        case lk_rtm:
+        value = "rtm";
+        break;
+
+        case lk_hle:
+        value = "hle";
+        break;
+#endif
+
         case lk_ticket:
         value = "ticket";
         break;
@@ -4108,6 +4074,102 @@ __kmp_stg_print_lock_kind( kmp_str_buf_t * buffer, char const * name, void * dat
     }
 }
 
+// -------------------------------------------------------------------------------------------------
+// KMP_SPIN_BACKOFF_PARAMS
+// -------------------------------------------------------------------------------------------------
+
+// KMP_SPIN_BACKOFF_PARAMS=max_backoff[,min_tick] (max backoff size, min tick for machine pause)
+static void
+__kmp_stg_parse_spin_backoff_params(const char* name, const char* value, void* data)
+{
+    const char *next = value;
+
+    int total = 0;          // Count elements that were set. It'll be used as an array size
+    int prev_comma = FALSE; // For correct processing sequential commas
+    int i;
+
+    kmp_uint32 max_backoff = __kmp_spin_backoff_params.max_backoff;
+    kmp_uint32 min_tick = __kmp_spin_backoff_params.min_tick;
+
+    // Run only 3 iterations because it is enough to read two values or find a syntax error
+    for ( i = 0; i < 3 ; i++) {
+        SKIP_WS( next );
+
+        if ( *next == '\0' ) {
+            break;
+        }
+        // Next character is not an integer or not a comma OR number of values > 2 => end of list
+        if ( ( ( *next < '0' || *next > '9' ) && *next !=',' ) || total > 2 ) {
+            KMP_WARNING( EnvSyntaxError, name, value );
+            return;
+        }
+        // The next character is ','
+        if ( *next == ',' ) {
+            // ',' is the fisrt character
+            if ( total == 0 || prev_comma ) {
+                total++;
+            }
+            prev_comma = TRUE;
+            next++; //skip ','
+            SKIP_WS( next );
+        }
+        // Next character is a digit
+        if ( *next >= '0' && *next <= '9' ) {
+            int num;
+            const char *buf = next;
+            char const * msg  = NULL;
+            prev_comma = FALSE;
+            SKIP_DIGITS( next );
+            total++;
+
+            const char *tmp = next;
+            SKIP_WS( tmp );
+            if ( ( *next == ' ' || *next == '\t' ) && ( *tmp >= '0' && *tmp <= '9' ) ) {
+                KMP_WARNING( EnvSpacesNotAllowed, name, value );
+                return;
+            }
+
+            num = __kmp_str_to_int( buf, *next );
+            if ( num <= 0 ) { // The number of retries should be > 0
+                msg = KMP_I18N_STR( ValueTooSmall );
+                num = 1;
+            } else if ( num > KMP_INT_MAX ) {
+                msg = KMP_I18N_STR( ValueTooLarge );
+                num = KMP_INT_MAX;
+            }
+            if ( msg != NULL ) {
+                // Message is not empty. Print warning.
+                KMP_WARNING( ParseSizeIntWarn, name, value, msg );
+                KMP_INFORM( Using_int_Value, name, num );
+            }
+            if( total == 1 ) {
+                max_backoff = num;
+            } else if( total == 2 ) {
+                min_tick = num;
+            }
+        }
+    }
+    KMP_DEBUG_ASSERT( total > 0 );
+    if( total <= 0 ) {
+        KMP_WARNING( EnvSyntaxError, name, value );
+        return;
+    }
+    __kmp_spin_backoff_params.max_backoff = max_backoff;
+    __kmp_spin_backoff_params.min_tick    = min_tick;
+}
+
+static void
+__kmp_stg_print_spin_backoff_params(kmp_str_buf_t *buffer, char const* name, void* data)
+{
+    if( __kmp_env_format ) {
+        KMP_STR_BUF_PRINT_NAME_EX(name);
+    } else {
+        __kmp_str_buf_print( buffer, "   %s='", name );
+    }
+    __kmp_str_buf_print( buffer, "%d,%d'\n", __kmp_spin_backoff_params.max_backoff,
+                         __kmp_spin_backoff_params.min_tick );
+}
+
 #if KMP_USE_ADAPTIVE_LOCKS
 
 // -------------------------------------------------------------------------------------------------
@@ -4123,7 +4185,6 @@ __kmp_stg_parse_adaptive_lock_props( const char *name, const char *value, void *
     int max_badness = 0;
 
     const char *next = value;
-    const char *scan = next;
 
     int total = 0;          // Count elements that were set. It'll be used as an array size
     int prev_comma = FALSE; // For correct processing sequential commas
@@ -4169,7 +4230,7 @@ __kmp_stg_parse_adaptive_lock_props( const char *name, const char *value, void *
             }
 
             num = __kmp_str_to_int( buf, *next );
-            if ( num < 1 ) { // The number of retries should be > 0
+            if ( num < 0 ) { // The number of retries should be >= 0
                 msg = KMP_I18N_STR( ValueTooSmall );
                 num = 1;
             } else if ( num > KMP_INT_MAX ) {
@@ -4193,12 +4254,8 @@ __kmp_stg_parse_adaptive_lock_props( const char *name, const char *value, void *
         KMP_WARNING( EnvSyntaxError, name, value );
         return;
     }
-    if( max_retries != 0 ) {
-        __kmp_adaptive_backoff_params.max_soft_retries = max_retries;
-    }
-    if( max_badness != 0 ) {
-        __kmp_adaptive_backoff_params.max_badness = max_badness;
-    }
+    __kmp_adaptive_backoff_params.max_soft_retries = max_retries;
+    __kmp_adaptive_backoff_params.max_badness = max_badness;
 }
 
 
@@ -4594,9 +4651,6 @@ __kmp_stg_print_omp_cancellation( kmp_str_buf_t * buffer, char const * name, voi
 #endif
 
 // -------------------------------------------------------------------------------------------------
-
-
-// -------------------------------------------------------------------------------------------------
 // Table.
 // -------------------------------------------------------------------------------------------------
 
@@ -4623,8 +4677,12 @@ static kmp_setting_t __kmp_stg_table[] = {
     { "KMP_TASKING",                       __kmp_stg_parse_tasking,            __kmp_stg_print_tasking,            NULL, 0, 0 },
     { "KMP_TASK_STEALING_CONSTRAINT",      __kmp_stg_parse_task_stealing,      __kmp_stg_print_task_stealing,      NULL, 0, 0 },
     { "OMP_MAX_ACTIVE_LEVELS",             __kmp_stg_parse_max_active_levels,  __kmp_stg_print_max_active_levels,  NULL, 0, 0 },
+#if OMP_41_ENABLED
+    { "OMP_MAX_TASK_PRIORITY",             __kmp_stg_parse_max_task_priority,  __kmp_stg_print_max_task_priority,  NULL, 0, 0 },
+#endif
     { "OMP_THREAD_LIMIT",                  __kmp_stg_parse_all_threads,        __kmp_stg_print_all_threads,        NULL, 0, 0 },
     { "OMP_WAIT_POLICY",                   __kmp_stg_parse_wait_policy,        __kmp_stg_print_wait_policy,        NULL, 0, 0 },
+    { "KMP_DISP_NUM_BUFFERS",              __kmp_stg_parse_disp_buffers,       __kmp_stg_print_disp_buffers,       NULL, 0, 0 },
 #if KMP_NESTED_HOT_TEAMS
     { "KMP_HOT_TEAMS_MAX_LEVEL",           __kmp_stg_parse_hot_teams_level,    __kmp_stg_print_hot_teams_level,    NULL, 0, 0 },
     { "KMP_HOT_TEAMS_MODE",                __kmp_stg_parse_hot_teams_mode,     __kmp_stg_print_hot_teams_mode,     NULL, 0, 0 },
@@ -4727,10 +4785,9 @@ static kmp_setting_t __kmp_stg_table[] = {
     { "KMP_LOAD_BALANCE_INTERVAL",         __kmp_stg_parse_ld_balance_interval,__kmp_stg_print_ld_balance_interval,NULL, 0, 0 },
 #endif
 
-
-
     { "KMP_NUM_LOCKS_IN_BLOCK",            __kmp_stg_parse_lock_block,         __kmp_stg_print_lock_block,         NULL, 0, 0 },
     { "KMP_LOCK_KIND",                     __kmp_stg_parse_lock_kind,          __kmp_stg_print_lock_kind,          NULL, 0, 0 },
+    { "KMP_SPIN_BACKOFF_PARAMS",           __kmp_stg_parse_spin_backoff_params, __kmp_stg_print_spin_backoff_params, NULL, 0, 0 },
 #if KMP_USE_ADAPTIVE_LOCKS
     { "KMP_ADAPTIVE_LOCK_PROPS",           __kmp_stg_parse_adaptive_lock_props,__kmp_stg_print_adaptive_lock_props,  NULL, 0, 0 },
 #if KMP_DEBUG_ADAPTIVE_LOCKS
@@ -5036,17 +5093,6 @@ __kmp_stg_check_rivals(          // 0 -- Ok, 1 -- errors found.
 }; // __kmp_stg_check_rivals
 
 
-
-static int
-__kmp_env_isDefined( char const * name ) {
-    int rc = 0;
-    kmp_setting_t * setting = __kmp_stg_find( name );
-    if ( setting != NULL ) {
-        rc = setting->set;
-    }; // if
-    return rc;
-}
-
 static int
 __kmp_env_toPrint( char const * name, int flag ) {
     int rc = 0;
@@ -5123,6 +5169,9 @@ __kmp_env_initialize( char const * string ) {
             setting->set = 1;
         }
     }; // for i
+
+    // We need to know if blocktime was set when processing OMP_WAIT_POLICY
+    blocktime_str = __kmp_env_blk_var( & block, "KMP_BLOCKTIME" );
 
     // Special case. If we parse environment, not a string, process KMP_WARNINGS first.
     if ( string == NULL ) {
@@ -5263,11 +5312,42 @@ __kmp_env_initialize( char const * string ) {
         // affinity.
         //
         const char *var = "KMP_AFFINITY";
+# if KMP_USE_HWLOC
+        if(hwloc_topology_init(&__kmp_hwloc_topology) < 0) {
+            __kmp_hwloc_error = TRUE;
+            if(__kmp_affinity_verbose)
+                KMP_WARNING(AffHwlocErrorOccurred, var, "hwloc_topology_init()");
+        }
+# endif
         if ( __kmp_affinity_type == affinity_disabled ) {
             KMP_AFFINITY_DISABLE();
         }
         else if ( ! KMP_AFFINITY_CAPABLE() ) {
+# if KMP_USE_HWLOC
+            const hwloc_topology_support* topology_support = hwloc_topology_get_support(__kmp_hwloc_topology);
+            if(hwloc_topology_load(__kmp_hwloc_topology) < 0) {
+                __kmp_hwloc_error = TRUE;
+                if(__kmp_affinity_verbose)
+                    KMP_WARNING(AffHwlocErrorOccurred, var, "hwloc_topology_load()");
+            }
+            // Is the system capable of setting/getting this thread's affinity?
+            // also, is topology discovery possible? (pu indicates ability to discover processing units)
+            // and finally, were there no errors when calling any hwloc_* API functions?
+            if(topology_support->cpubind->set_thisthread_cpubind &&
+               topology_support->cpubind->get_thisthread_cpubind &&
+               topology_support->discovery->pu &&
+               !__kmp_hwloc_error)
+            {
+                // enables affinity according to KMP_AFFINITY_CAPABLE() macro
+                KMP_AFFINITY_ENABLE(TRUE);
+            } else {
+                // indicate that hwloc didn't work and disable affinity
+                __kmp_hwloc_error = TRUE;
+                KMP_AFFINITY_DISABLE();
+            }
+# else
             __kmp_affinity_determine_capable( var );
+# endif // KMP_USE_HWLOC
             if ( ! KMP_AFFINITY_CAPABLE() ) {
                 if ( __kmp_affinity_verbose || ( __kmp_affinity_warnings
                   && ( __kmp_affinity_type != affinity_default )
@@ -5516,7 +5596,6 @@ void
 __kmp_env_print_2() {
 
     kmp_env_blk_t block;
-    int           i;
     kmp_str_buf_t buffer;
 
     __kmp_env_format = 1;
@@ -5549,8 +5628,6 @@ __kmp_env_print_2() {
 
 } // __kmp_env_print_2
 #endif // OMP_40_ENABLED
-
-
 
 // end of file
 

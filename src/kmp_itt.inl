@@ -4,7 +4,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -108,10 +108,10 @@ static kmp_bootstrap_lock_t  metadata_lock = KMP_BOOTSTRAP_LOCK_INITIALIZER( met
 // -------------------------------------------------------------------------------------------------
 
 LINKAGE void
-__kmp_itt_region_forking( int gtid, int team_size, int barriers, int serialized ) {
+__kmp_itt_region_forking( int gtid, int team_size, int barriers ) {
 #if USE_ITT_NOTIFY
     kmp_team_t *      team = __kmp_team_from_gtid( gtid );
-    if (team->t.t_active_level + serialized > 1)
+    if (team->t.t_active_level > 1)
     {
         // The frame notifications are only supported for the outermost teams.
         return;
@@ -195,8 +195,8 @@ __kmp_itt_region_forking( int gtid, int team_size, int barriers, int serialized 
             }
         }
         KMP_ITT_DEBUG_LOCK();
-        KMP_ITT_DEBUG_PRINT( "[frm beg] gtid=%d, idx=%x, serialized:%d, loc:%p\n",
-                         gtid, loc->reserved_2, serialized, loc );
+        KMP_ITT_DEBUG_PRINT( "[frm beg] gtid=%d, idx=%x, loc:%p\n",
+                         gtid, loc->reserved_2, loc );
     }
 #endif
 } // __kmp_itt_region_forking
@@ -428,10 +428,10 @@ __kmp_itt_region_finished( int gtid ) {
 // -------------------------------------------------------------------------------------------------
 
 LINKAGE void
-__kmp_itt_region_joined( int gtid, int serialized ) {
+__kmp_itt_region_joined( int gtid ) {
 #if USE_ITT_NOTIFY
     kmp_team_t *      team = __kmp_team_from_gtid( gtid );
-    if (team->t.t_active_level + serialized > 1)
+    if (team->t.t_active_level > 1)
     {
         // The frame notifications are only supported for the outermost teams.
         return;
@@ -443,8 +443,8 @@ __kmp_itt_region_joined( int gtid, int serialized ) {
         if(frm < KMP_MAX_FRAME_DOMAINS) {
             KMP_ITT_DEBUG_LOCK();
             __itt_frame_end_v3(__kmp_itt_region_domains[frm], NULL);
-            KMP_ITT_DEBUG_PRINT( "[frm end] gtid=%d, idx=%x, serialized:%d, loc:%p\n",
-                         gtid, loc->reserved_2, serialized, loc );
+            KMP_ITT_DEBUG_PRINT( "[frm end] gtid=%d, idx=%x, loc:%p\n",
+                         gtid, loc->reserved_2, loc );
         }
     }
 #endif
@@ -817,8 +817,8 @@ __kmp_itt_lock_acquiring( kmp_user_lock_p lock ) {
 #if KMP_USE_DYNAMIC_LOCK && USE_ITT_NOTIFY
     // postpone lock object access
     if ( __itt_sync_prepare_ptr ) {
-        if ( DYNA_EXTRACT_D_TAG(lock) == 0 ) {
-            kmp_indirect_lock_t *ilk = DYNA_LOOKUP_I_LOCK(lock);
+        if ( KMP_EXTRACT_D_TAG(lock) == 0 ) {
+            kmp_indirect_lock_t *ilk = KMP_LOOKUP_I_LOCK(lock);
             __itt_sync_prepare( ilk->lock );
         } else {
             __itt_sync_prepare( lock );
@@ -834,8 +834,8 @@ __kmp_itt_lock_acquired( kmp_user_lock_p lock ) {
 #if KMP_USE_DYNAMIC_LOCK && USE_ITT_NOTIFY
     // postpone lock object access
     if ( __itt_sync_acquired_ptr ) {
-        if ( DYNA_EXTRACT_D_TAG(lock) == 0 ) {
-            kmp_indirect_lock_t *ilk = DYNA_LOOKUP_I_LOCK(lock);
+        if ( KMP_EXTRACT_D_TAG(lock) == 0 ) {
+            kmp_indirect_lock_t *ilk = KMP_LOOKUP_I_LOCK(lock);
             __itt_sync_acquired( ilk->lock );
         } else {
             __itt_sync_acquired( lock );
@@ -850,8 +850,8 @@ void
 __kmp_itt_lock_releasing( kmp_user_lock_p lock ) {
 #if KMP_USE_DYNAMIC_LOCK && USE_ITT_NOTIFY
     if ( __itt_sync_releasing_ptr ) {
-        if ( DYNA_EXTRACT_D_TAG(lock) == 0 ) {
-            kmp_indirect_lock_t *ilk = DYNA_LOOKUP_I_LOCK(lock);
+        if ( KMP_EXTRACT_D_TAG(lock) == 0 ) {
+            kmp_indirect_lock_t *ilk = KMP_LOOKUP_I_LOCK(lock);
             __itt_sync_releasing( ilk->lock );
         } else {
             __itt_sync_releasing( lock );
@@ -866,8 +866,8 @@ void
 __kmp_itt_lock_cancelled( kmp_user_lock_p lock ) {
 #if KMP_USE_DYNAMIC_LOCK && USE_ITT_NOTIFY
     if ( __itt_sync_cancel_ptr ) {
-        if ( DYNA_EXTRACT_D_TAG(lock) == 0 ) {
-            kmp_indirect_lock_t *ilk = DYNA_LOOKUP_I_LOCK(lock);
+        if ( KMP_EXTRACT_D_TAG(lock) == 0 ) {
+            kmp_indirect_lock_t *ilk = KMP_LOOKUP_I_LOCK(lock);
             __itt_sync_cancel( ilk->lock );
         } else {
             __itt_sync_cancel( lock );

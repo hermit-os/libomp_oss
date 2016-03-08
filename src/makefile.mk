@@ -1,7 +1,7 @@
 # makefile.mk #
 
 # <copyright>
-#    Copyright (c) 2008-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2008-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -95,6 +95,9 @@ VPATH += $(src_dir)
 VPATH += $(src_dir)i18n/
 VPATH += $(inc_dir)
 VPATH += $(src_dir)thirdparty/ittnotify/
+ifneq "$(os)" "win"
+    VPATH += $(src_dir)thirdparty/safeclib/
+endif
 
 
 # Define config.
@@ -116,9 +119,14 @@ define curr_config
     OMPT_SUPPORT=$(OMPT_SUPPORT)
     OMPT_BLAME=$(OMPT_BLAME)
     OMPT_TRACE=$(OMPT_TRACE)
+    USE_HWLOC=$(USE_HWLOC)
+    HWLOC_INSTALL_DIR=$(HWLOC_INSTALL_DIR)
 endef
 # And check it.
 include $(tools_dir)src/common-checks.mk
+
+# Hwloc library
+VPATH += $(HWLOC_INSTALL_DIR)/include
 
 # Function to convert LIB_TYPE to printable one.
 legal_type = $(if $(filter norm,$(LIB_TYPE)),Performance,$(if $(filter prof,$(LIB_TYPE)),Profiling,Stub))
@@ -458,6 +466,12 @@ ifeq "$(os)" "win"
     ld-flags += -incremental:no
     ld-flags += -version:$(VERSION).0
 endif
+ifeq "$(USE_HWLOC)" "on"
+    ifneq "$(os)" "win"
+        ld-flags += -L $(HWLOC_INSTALL_DIR)/lib
+        ld-flags-extra += $(HWLOC_INSTALL_DIR)/lib/libhwloc.a
+    endif
+endif
 
 # --------------------------------------------------------------------------------------------------
 # Project-specific preprocessor definitions.
@@ -477,6 +491,12 @@ else # lin, mic or mac
     cpp-flags += -D _REENTRANT
 endif
 
+ifeq "$(USE_HWLOC)" "on"
+    cpp-flags += -D KMP_USE_HWLOC=1
+else
+    cpp-flags += -D KMP_USE_HWLOC=0
+endif
+
 # TODO: DIAG leads to DEBUG. Confusing a bit. Raname KMP_DEBUG to KMP_DIAG?
 ifeq "$(DIAG)" "on"
     cpp-flags += -D KMP_DEBUG
@@ -492,7 +512,11 @@ ifeq "$(COVERAGE)" "off"
     cpp-flags += -D KMP_USE_ASSERT
 endif
 
-cpp-flags += -D BUILD_I8
+# Do not define BUILD_I8 for ia-32 and arm:
+ifeq "$(filter 32 arm,$(arch))" ""
+    cpp-flags += -D BUILD_I8
+endif
+
 ifneq "$(os)" "win"
     cpp-flags += -D BUILD_TV
 endif
@@ -614,7 +638,6 @@ endif
 # changed to __kmp_itt_.
 cpp-flags += -D INTEL_ITTNOTIFY_PREFIX=__kmp_itt_
 
-
 # Linux* OS: __declspec(thread) TLS is still buggy on static builds.
 # Windows* OS: This define causes problems with LoadLibrary + declspec(thread) on Windows* OS. See CQ50564,
 #     tests kmp_load_library_lib*.c, and the following MSDN reference:
@@ -660,6 +683,7 @@ endif
 ifeq "$(DIAG)" "on"
     gd-flags += -D KMP_DEBUG
 endif
+gd-flags += -D USE_DEBUGGER
 
 # --- Macro for expand-vars.pl ---
 
@@ -681,6 +705,8 @@ else
         ev-flags += -D OMP_VERSION=200505
     endif
 endif
+ev-flags += -D KMP_VERSION_BUILD_YEAR=$(shell $(perl) -e 'print int($(build)/10000)')
+ev-flags += -D KMP_VERSION_BUILD_MONTH_DAY=$(shell $(perl) -e 'print int($(build)%10000)')
 
 # -- Options specified in command line ---
 
@@ -714,10 +740,24 @@ lib_c_items :=      \
     kmp_ftn_cdecl   \
     kmp_ftn_extra   \
     kmp_version     \
-    $(ompt_items)   \
     $(empty)
 lib_cpp_items :=
 lib_asm_items :=
+
+# Safe C API
+ifneq "$(os)" "win"
+    lib_c_items +=          \
+        ignore_handler_s    \
+        memcpy_s            \
+        mem_primitives_lib  \
+        safe_mem_constraint \
+        safe_str_constraint \
+        strcpy_s            \
+        strncpy_s           \
+        strnlen_s           \
+        snprintf_support    \
+        $(empty)
+endif
 
 # Files to be linked into import library.
 imp_c_items :=
@@ -734,6 +774,7 @@ else # norm or prof
         kmp_debug                    \
         kmp_debugger                 \
         kmp_itt                      \
+        $(ompt_items)                \
         $(empty)
     ifeq "$(USE_ITT_NOTIFY)" "1"
         lib_c_items +=  ittnotify_static
@@ -768,6 +809,8 @@ ifeq "$(stats)" "on"
     lib_cpp_items += kmp_stats
     lib_cpp_items += kmp_stats_timing
 endif
+
+
 
     # OS-specific files.
     ifeq "$(os)" "win"
@@ -1529,8 +1572,14 @@ ifneq "$(filter %-dyna win-%,$(os)-$(LINK_TYPE))" ""
     ifeq "$(os)" "win"
         ifeq "$(LINK_TYPE)" "dyna"
             td_exp += kernel32.dll
+            ifeq "$(OMPT_SUPPORT)" "on"
+                td_exp += psapi.dll
+            endif
         else
             td_exp += uuid
+            ifeq "$(OMPT_SUPPORT)" "on"
+                td_exp += psapi
+            endif
         endif
     endif
     ifeq "$(omp_os)" "freebsd"

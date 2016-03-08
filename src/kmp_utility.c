@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -49,7 +49,9 @@ static const char *unknown = "unknown";
 /* the debugging package has not been initialized yet, and only "0" will print   */
 /* debugging output since the environment variables have not been read.          */
 
+#ifdef KMP_DEBUG
 static int trace_level = 5;
+#endif
 
 /*
  * LOG_ID_BITS  = ( 1 + floor( log_2( max( log_per_phy - 1, 1 ))))
@@ -62,25 +64,25 @@ __kmp_get_physical_id( int log_per_phy, int apic_id )
    int index_lsb, index_msb, temp;
 
    if (log_per_phy > 1) {
-	index_lsb = 0;
-	index_msb = 31;
+    index_lsb = 0;
+    index_msb = 31;
 
-	temp = log_per_phy;
+    temp = log_per_phy;
         while ( (temp & 1) == 0 ) {
-	    temp  >>= 1;
-	    index_lsb++;
-	}
+        temp  >>= 1;
+        index_lsb++;
+    }
 
-	temp = log_per_phy;
-	while ( (temp & 0x80000000)==0 ) {
-	    temp <<= 1;
-	    index_msb--;
-	}
+    temp = log_per_phy;
+    while ( (temp & 0x80000000)==0 ) {
+        temp <<= 1;
+        index_msb--;
+    }
 
-	/* If >1 bits were set in log_per_phy, choose next higher power of 2 */
-	if (index_lsb != index_msb) index_msb++;
+    /* If >1 bits were set in log_per_phy, choose next higher power of 2 */
+    if (index_lsb != index_msb) index_msb++;
 
-	return ( (int) (apic_id >> index_msb) );
+    return ( (int) (apic_id >> index_msb) );
    }
 
    return apic_id;
@@ -97,22 +99,21 @@ __kmp_get_logical_id( int log_per_phy, int apic_id )
 {
    unsigned current_bit;
    int bits_seen;
-   unsigned mask;
 
    if (log_per_phy <= 1) return ( 0 );
 
    bits_seen = 0;
 
    for (current_bit = 1; log_per_phy != 0; current_bit <<= 1) {
-	if ( log_per_phy & current_bit ) {
-	    log_per_phy &= ~current_bit;
-	    bits_seen++;
-	}
+    if ( log_per_phy & current_bit ) {
+        log_per_phy &= ~current_bit;
+        bits_seen++;
+    }
    }
 
    /* If exactly 1 bit was set in log_per_phy, choose next lower power of 2 */
    if (bits_seen == 1) {
-	current_bit >>= 1;
+    current_bit >>= 1;
    }
 
    return ( (int) ((current_bit - 1) & apic_id) );
@@ -155,7 +156,9 @@ __kmp_query_cpuid( kmp_cpuinfo_t *p )
     struct kmp_cpuid buf;
     int max_arg;
     int log_per_phy;
+#ifdef KMP_DEBUG
     int cflush_size;
+#endif
 
     p->initialized = 1;
 
@@ -330,15 +333,15 @@ __kmp_expand_host_name( char *buffer, size_t size )
     KMP_DEBUG_ASSERT(size >= sizeof(unknown));
 #if KMP_OS_WINDOWS
     {
-	DWORD	s = size;
+    DWORD    s = size;
 
-	if (! GetComputerNameA( buffer, & s ))
-	    KMP_STRCPY_S( buffer, size, unknown );
+    if (! GetComputerNameA( buffer, & s ))
+        KMP_STRCPY_S( buffer, size, unknown );
     }
 #else
     buffer[size - 2] = 0;
     if (gethostname( buffer, size ) || buffer[size - 2] != 0)
-	KMP_STRCPY_S( buffer, size, unknown );
+    KMP_STRCPY_S( buffer, size, unknown );
 #endif
 }
 
@@ -354,97 +357,97 @@ __kmp_expand_host_name( char *buffer, size_t size )
 void
 __kmp_expand_file_name( char *result, size_t rlen, char *pattern )
 {
-    char	*pos = result, *end = result + rlen - 1;
-    char	 buffer[256];
-    int		 default_cpu_width = 1;
-    int          snp_result;
+    char *pos = result, *end = result + rlen - 1;
+    char buffer[256];
+    int  default_cpu_width = 1;
+    int  snp_result;
 
     KMP_DEBUG_ASSERT(rlen > 0);
     *end = 0;
     {
-	int i;
-	for(i = __kmp_xproc; i >= 10; i /= 10, ++default_cpu_width);
+        int i;
+        for(i = __kmp_xproc; i >= 10; i /= 10, ++default_cpu_width);
     }
 
     if (pattern != NULL) {
-	while (*pattern != '\0' && pos < end) {
-	    if (*pattern != '%') {
-		*pos++ = *pattern++;
-	    } else {
-		char *old_pattern = pattern;
-		int width = 1;
-		int cpu_width = default_cpu_width;
+    while (*pattern != '\0' && pos < end) {
+        if (*pattern != '%') {
+        *pos++ = *pattern++;
+        } else {
+        char *old_pattern = pattern;
+        int width = 1;
+        int cpu_width = default_cpu_width;
 
-		++pattern;
+        ++pattern;
 
-		if (*pattern >= '0' && *pattern <= '9') {
-		    width = 0;
-		    do {
-			width = (width * 10) + *pattern++ - '0';
-		    } while (*pattern >= '0' && *pattern <= '9');
-		    if (width < 0 || width > 1024)
-			width = 1;
+        if (*pattern >= '0' && *pattern <= '9') {
+            width = 0;
+            do {
+            width = (width * 10) + *pattern++ - '0';
+            } while (*pattern >= '0' && *pattern <= '9');
+            if (width < 0 || width > 1024)
+            width = 1;
 
-		    cpu_width = width;
-		}
+            cpu_width = width;
+        }
 
-		switch (*pattern) {
-		case 'H':
-		case 'h':
-		    {
-			__kmp_expand_host_name( buffer, sizeof( buffer ) );
-			KMP_STRNCPY( pos,  buffer, end - pos + 1);
-			if(*end == 0) {
-			    while ( *pos )
-				++pos;
-			    ++pattern;
-			} else
-			    pos = end;
-		    }
-		    break;
-		case 'P':
-		case 'p':
-		    {
-			snp_result = KMP_SNPRINTF( pos, end - pos + 1, "%0*d", cpu_width, __kmp_dflt_team_nth );
-			if(snp_result >= 0 && snp_result <= end - pos) {
-			    while ( *pos )
-				++pos;
-			    ++pattern;
-			} else
-			    pos = end;
-		    }
-		    break;
-		case 'I':
-		case 'i':
-		    {
-			pid_t id = getpid();
-			snp_result = KMP_SNPRINTF( pos, end - pos + 1, "%0*d", width, id );
-			if(snp_result >= 0 && snp_result <= end - pos) {
-			    while ( *pos )
-				++pos;
-			    ++pattern;
-			} else
-			    pos = end;
-			break;
-		    }
-		case '%':
-		    {
-			*pos++ = '%';
-			++pattern;
-			break;
-		    }
-		default:
-		    {
-			*pos++ = '%';
-			pattern = old_pattern + 1;
-			break;
-		    }
-		}
-	    }
-	}
-	/* TODO: How do we get rid of this? */
-	if(*pattern != '\0')
-	    KMP_FATAL( FileNameTooLong );
+        switch (*pattern) {
+        case 'H':
+        case 'h':
+            {
+            __kmp_expand_host_name( buffer, sizeof( buffer ) );
+            KMP_STRNCPY( pos,  buffer, end - pos + 1);
+            if(*end == 0) {
+                while ( *pos )
+                ++pos;
+                ++pattern;
+            } else
+                pos = end;
+            }
+            break;
+        case 'P':
+        case 'p':
+            {
+            snp_result = KMP_SNPRINTF( i1w, pos, end - pos + 1, "%0*d", cpu_width, __kmp_dflt_team_nth );
+            if(snp_result >= 0 && snp_result <= end - pos) {
+                while ( *pos )
+                ++pos;
+                ++pattern;
+            } else
+                pos = end;
+            }
+            break;
+        case 'I':
+        case 'i':
+            {
+            pid_t id = getpid();
+            snp_result = KMP_SNPRINTF( i1w, pos, end - pos + 1, "%0*d", width, id );
+            if(snp_result >= 0 && snp_result <= end - pos) {
+                while ( *pos )
+                ++pos;
+                ++pattern;
+            } else
+                pos = end;
+            break;
+            }
+        case '%':
+            {
+            *pos++ = '%';
+            ++pattern;
+            break;
+            }
+        default:
+            {
+            *pos++ = '%';
+            pattern = old_pattern + 1;
+            break;
+            }
+        }
+        }
+    }
+    /* TODO: How do we get rid of this? */
+    if(*pattern != '\0')
+        KMP_FATAL( FileNameTooLong );
     }
 
     *pos = '\0';

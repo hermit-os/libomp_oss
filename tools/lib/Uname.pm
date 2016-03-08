@@ -7,7 +7,7 @@
 # or see POD (Plain Old Documentation) embedded to the source...
 #
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -158,7 +158,7 @@ $values{ processor } = $values{ machine };
 
 # hardware_platform.
 if ( 0 ) {
-} elsif ( $^O eq "linux" or $^O eq "freebsd" ) {
+} elsif ( $^O eq "linux" or $^O eq "freebsd" or $^O eq "netbsd" ) {
     if ( 0 ) {
     } elsif ( $values{ machine } =~ m{\Ai[3456]86\z} ) {
         $values{ hardware_platform } = "i386";
@@ -397,6 +397,8 @@ if ( 0 ) {
     $values{ operating_system } = "MS Windows";
 } elsif ( $values{ kernel_name } =~ m{\AFreeBSD} ) {
     $values{ operating_system } = "FreeBSD";
+} elsif ( $values{ kernel_name } =~ m{\ANetBSD} ) {
+    $values{ operating_system } = "NetBSD";
 } else {
     die "Unsupported kernel_name (\"$values{ kernel_name }\") returned by POSIX::uname(); stopped";
 }; # if

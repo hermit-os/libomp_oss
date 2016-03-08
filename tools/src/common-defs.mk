@@ -1,7 +1,7 @@
 # common-defs.mk #
 
 # <copyright>
-#    Copyright (c) 2008-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2008-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions

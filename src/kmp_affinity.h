@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -77,6 +77,13 @@ public:
     bool operator!=(const Address &b) const {
         return !operator==(b);
     }
+    void print() const {
+        unsigned i;
+        printf("Depth: %u --- ", depth);
+        for(i=0;i<depth;i++) {
+            printf("%u ", labels[i]);
+        }
+    }
 };
 
 class AddrUnsPair {
@@ -91,6 +98,18 @@ public:
         first = b.first;
         second = b.second;
         return *this;
+    }
+    void print() const {
+        printf("first = "); first.print();
+        printf(" --- second = %u", second);
+    }
+    bool operator==(const AddrUnsPair &b) const {
+        if(first != b.first) return false;
+        if(second != b.second) return false;
+        return true;
+    }
+    bool operator!=(const AddrUnsPair &b) const {
+        return !operator==(b);
     }
 };
 
@@ -257,53 +276,56 @@ public:
     void resize(kmp_uint32 nproc)
     {
         kmp_int8 bool_result = KMP_COMPARE_AND_STORE_ACQ8(&resizing, 0, 1);
-        if (bool_result == 0) { // Someone else is resizing
-            while (TCR_1(resizing) != 0) KMP_CPU_PAUSE();
-            return;
+        while (bool_result == 0) { // someone else is trying to resize
+            KMP_CPU_PAUSE();
+            if (nproc <= base_num_threads)  // happy with other thread's resize
+                return;
+            else // try to resize
+                bool_result = KMP_COMPARE_AND_STORE_ACQ8(&resizing, 0, 1);
         }
         KMP_DEBUG_ASSERT(bool_result!=0);
-        KMP_DEBUG_ASSERT(nproc > base_num_threads);
+        if (nproc <= base_num_threads) return; // happy with other thread's resize
 
         // Calculate new maxLevels
         kmp_uint32 old_sz = skipPerLevel[depth-1];
         kmp_uint32 incs = 0, old_maxLevels = maxLevels;
-	// First see if old maxLevels is enough to contain new size
+        // First see if old maxLevels is enough to contain new size
         for (kmp_uint32 i=depth; i<maxLevels && nproc>old_sz; ++i) {
             skipPerLevel[i] = 2*skipPerLevel[i-1];
+            numPerLevel[i-1] *= 2;
             old_sz *= 2;
             depth++;
         }
-	if (nproc <= old_sz) // enough space already
-	    return;
-	// Not enough space, need to expand hierarchy
-        while (nproc > old_sz) {
-            old_sz *=2;
-            incs++;
-	    depth++;
-	}
-        maxLevels += incs;
+        if (nproc > old_sz) { // Not enough space, need to expand hierarchy
+            while (nproc > old_sz) {
+                old_sz *=2;
+                incs++;
+                depth++;
+            }
+            maxLevels += incs;
 
-        // Resize arrays
-        kmp_uint32 *old_numPerLevel = numPerLevel;
-        kmp_uint32 *old_skipPerLevel = skipPerLevel;
-        numPerLevel = skipPerLevel = NULL;
-        numPerLevel = (kmp_uint32 *)__kmp_allocate(maxLevels*2*sizeof(kmp_uint32));
-        skipPerLevel = &(numPerLevel[maxLevels]);
+            // Resize arrays
+            kmp_uint32 *old_numPerLevel = numPerLevel;
+            kmp_uint32 *old_skipPerLevel = skipPerLevel;
+            numPerLevel = skipPerLevel = NULL;
+            numPerLevel = (kmp_uint32 *)__kmp_allocate(maxLevels*2*sizeof(kmp_uint32));
+            skipPerLevel = &(numPerLevel[maxLevels]);
 
-        // Copy old elements from old arrays
-        for (kmp_uint32 i=0; i<old_maxLevels; ++i) { // init numPerLevel[*] to 1 item per level
-            numPerLevel[i] = old_numPerLevel[i];
-            skipPerLevel[i] = old_skipPerLevel[i];
+            // Copy old elements from old arrays
+            for (kmp_uint32 i=0; i<old_maxLevels; ++i) { // init numPerLevel[*] to 1 item per level
+                numPerLevel[i] = old_numPerLevel[i];
+                skipPerLevel[i] = old_skipPerLevel[i];
+            }
+
+            // Init new elements in arrays to 1
+            for (kmp_uint32 i=old_maxLevels; i<maxLevels; ++i) { // init numPerLevel[*] to 1 item per level
+                numPerLevel[i] = 1;
+                skipPerLevel[i] = 1;
+            }
+
+            // Free old arrays
+            __kmp_free(old_numPerLevel);
         }
-
-        // Init new elements in arrays to 1
-        for (kmp_uint32 i=old_maxLevels; i<maxLevels; ++i) { // init numPerLevel[*] to 1 item per level
-            numPerLevel[i] = 1;
-            skipPerLevel[i] = 1;
-        }
-
-        // Free old arrays
-        __kmp_free(old_numPerLevel);
 
         // Fill in oversubscription levels of hierarchy
         for (kmp_uint32 i=old_maxLevels; i<maxLevels; ++i)

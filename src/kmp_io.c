@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -62,7 +62,7 @@ kmp_bootstrap_lock_t __kmp_console_lock = KMP_BOOTSTRAP_LOCK_INITIALIZER( __kmp_
 
 #if KMP_OS_WINDOWS
 
-    # ifdef KMP_DEBUG 
+    # ifdef KMP_DEBUG
     /* __kmp_stdout is used only for dev build */
     static HANDLE    __kmp_stdout = NULL;
     # endif
@@ -96,7 +96,7 @@ kmp_bootstrap_lock_t __kmp_console_lock = KMP_BOOTSTRAP_LOCK_INITIALIZER( __kmp_
         /* wait until user presses return before closing window */
         /* TODO only close if a window was opened */
         if( __kmp_console_exists ) {
-            #ifdef KMP_DEBUG 
+            #ifdef KMP_DEBUG
             /* standard out is used only in dev build */
             __kmp_stdout = NULL;
             #endif
@@ -114,7 +114,7 @@ kmp_bootstrap_lock_t __kmp_console_lock = KMP_BOOTSTRAP_LOCK_INITIALIZER( __kmp_
         __kmp_acquire_bootstrap_lock( &__kmp_console_lock );
 
         if( ! __kmp_console_exists ) {
-            #ifdef KMP_DEBUG 
+            #ifdef KMP_DEBUG
             /* standard out is used only in dev build */
             HANDLE ho;
             #endif
@@ -188,7 +188,7 @@ __kmp_vprintf( enum kmp_io __kmp_io, char const * format, va_list ap )
         int chars = 0;
 
         #ifdef KMP_DEBUG_PIDS
-            chars = KMP_SNPRINTF( db, __kmp_debug_buf_chars, "pid=%d: ", (kmp_int32)getpid() );
+            chars = KMP_SNPRINTF( i1, db, __kmp_debug_buf_chars, "pid=%d: ", (kmp_int32)getpid() );
         #endif
         chars += KMP_VSNPRINTF( db, __kmp_debug_buf_chars, format, ap );
 

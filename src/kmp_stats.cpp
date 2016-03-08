@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -69,7 +69,7 @@ const kmp_stats_output_module::rgb_color kmp_stats_output_module::globalColorArr
     {1.0, 0.0, 0.0}, // red
     {1.0, 0.6, 0.0}, // orange
     {1.0, 1.0, 0.0}, // yellow
-    {0.0, 1.0, 0.0}, // green 
+    {0.0, 1.0, 0.0}, // green
     {0.0, 0.0, 1.0}, // blue
     {0.6, 0.2, 0.8}, // purple
     {1.0, 0.0, 1.0}, // magenta
@@ -165,8 +165,8 @@ std::string statistic::format(char unit, bool total) const
 /* ********************************************************** */
 /* ************* explicitTimer member functions ************* */
 
-void explicitTimer::start(timer_e timerEnumValue) { 
-    startTime = tsc_tick_count::now(); 
+void explicitTimer::start(timer_e timerEnumValue) {
+    startTime = tsc_tick_count::now();
     if(timeStat::logEvent(timerEnumValue)) {
         __kmp_stats_thread_ptr->incrementNestValue();
     }
@@ -183,12 +183,12 @@ void explicitTimer::stop(timer_e timerEnumValue) {
     stat->addSample ((finishTime - startTime).ticks());
 
     if(timeStat::logEvent(timerEnumValue)) {
-        __kmp_stats_thread_ptr->push_event(startTime.getValue() - __kmp_stats_start_time.getValue(), finishTime.getValue() - __kmp_stats_start_time.getValue(), __kmp_stats_thread_ptr->getNestValue(), timerEnumValue); 
+        __kmp_stats_thread_ptr->push_event(startTime.getValue() - __kmp_stats_start_time.getValue(), finishTime.getValue() - __kmp_stats_start_time.getValue(), __kmp_stats_thread_ptr->getNestValue(), timerEnumValue);
         __kmp_stats_thread_ptr->decrementNestValue();
     }
 
     /* We accept the risk that we drop a sample because it really did start at t==0. */
-    startTime = 0; 
+    startTime = 0;
     return;
 }
 
@@ -204,7 +204,7 @@ void kmp_stats_event_vector::deallocate() {
 
 // This function is for qsort() which requires the compare function to return
 // either a negative number if event1 < event2, a positive number if event1 > event2
-// or zero if event1 == event2.  
+// or zero if event1 == event2.
 // This sorts by start time (lowest to highest).
 int compare_two_events(const void* event1, const void* event2) {
     kmp_stats_event* ev1 = (kmp_stats_event*)event1;
@@ -223,7 +223,7 @@ void kmp_stats_event_vector::sort() {
 /* ************* kmp_stats_list member functions ************* */
 
 // returns a pointer to newly created stats node
-kmp_stats_list* kmp_stats_list::push_back(int gtid) { 
+kmp_stats_list* kmp_stats_list::push_back(int gtid) {
     kmp_stats_list* newnode = (kmp_stats_list*)__kmp_allocate(sizeof(kmp_stats_list));
     // placement new, only requires space and pointer and initializes (so __kmp_allocate instead of C++ new[] is used)
     new (newnode) kmp_stats_list();
@@ -266,7 +266,7 @@ int kmp_stats_list::size() {
 /* ********************************************************************* */
 /* ************* kmp_stats_list::iterator member functions ************* */
 
-kmp_stats_list::iterator::iterator() : ptr(NULL) {} 
+kmp_stats_list::iterator::iterator() : ptr(NULL) {}
 kmp_stats_list::iterator::~iterator() {}
 kmp_stats_list::iterator kmp_stats_list::iterator::operator++() {
     this->ptr = this->ptr->next;
@@ -285,10 +285,10 @@ kmp_stats_list::iterator kmp_stats_list::iterator::operator--(int dummy) {
     return *this;
 }
 bool kmp_stats_list::iterator::operator!=(const kmp_stats_list::iterator & rhs) {
-   return this->ptr!=rhs.ptr; 
+   return this->ptr!=rhs.ptr;
 }
 bool kmp_stats_list::iterator::operator==(const kmp_stats_list::iterator & rhs) {
-   return this->ptr==rhs.ptr; 
+   return this->ptr==rhs.ptr;
 }
 kmp_stats_list* kmp_stats_list::iterator::operator*() const {
     return this->ptr;
@@ -304,7 +304,7 @@ int kmp_stats_output_module::printPerThreadFlag       = 0;
 int kmp_stats_output_module::printPerThreadEventsFlag = 0;
 
 // init() is called very near the beginning of execution time in the constructor of __kmp_stats_global_output
-void kmp_stats_output_module::init() 
+void kmp_stats_output_module::init()
 {
     char * statsFileName  = getenv("KMP_STATS_FILE");
     eventsFileName        = getenv("KMP_STATS_EVENTS_FILE");
@@ -366,7 +366,7 @@ void kmp_stats_output_module::printStats(FILE *statsOut, statistic const * theSt
 
     // Print
     const char * title = areTimers ? "Timer,                   SampleCount," : "Counter,                 ThreadCount,";
-    fprintf (statsOut, "%s    Min,      Mean,       Max,     Total,        SD\n", title);    
+    fprintf (statsOut, "%s    Min,      Mean,       Max,     Total,        SD\n", title);
     if (areTimers) {
         for (int s = 0; s<TIMER_LAST; s++) {
             statistic const * stat = &theStats[s];
@@ -381,7 +381,7 @@ void kmp_stats_output_module::printStats(FILE *statsOut, statistic const * theSt
             fprintf (statsOut, "%-25s, %s\n", counter::name(counter_e(s)), stat->format(' ', true).c_str());
         }
     }
-} 
+}
 
 void kmp_stats_output_module::printCounters(FILE * statsOut, counter const * theCounters)
 {
@@ -400,10 +400,10 @@ void kmp_stats_output_module::printEvents(FILE* eventsOut, kmp_stats_event_vecto
     for (int i = 0; i < theEvents->size(); i++) {
         kmp_stats_event ev = theEvents->at(i);
         rgb_color color = getEventColor(ev.getTimerName());
-        fprintf(eventsOut, "%d %lu %lu %1.1f rgb(%1.1f,%1.1f,%1.1f) %s\n", 
-                gtid, 
-                ev.getStart(), 
-                ev.getStop(), 
+        fprintf(eventsOut, "%d %lu %lu %1.1f rgb(%1.1f,%1.1f,%1.1f) %s\n",
+                gtid,
+                ev.getStart(),
+                ev.getStop(),
                 1.2 - (ev.getNestLevel() * 0.2),
                 color.r, color.g, color.b,
                 timeStat::name(ev.getTimerName())
@@ -414,7 +414,7 @@ void kmp_stats_output_module::printEvents(FILE* eventsOut, kmp_stats_event_vecto
 
 void kmp_stats_output_module::windupExplicitTimers()
 {
-    // Wind up any explicit timers. We assume that it's fair at this point to just walk all the explcit timers in all threads 
+    // Wind up any explicit timers. We assume that it's fair at this point to just walk all the explcit timers in all threads
     // and say "it's over".
     // If the timer wasn't running, this won't record anything anyway.
     kmp_stats_list::iterator it;
@@ -435,7 +435,7 @@ void kmp_stats_output_module::printPloticusFile() {
                      "   scale: 1.0\n\n");
 
     fprintf(plotOut, "#proc getdata\n"
-                     "   file: %s\n\n", 
+                     "   file: %s\n\n",
                      eventsFileName);
 
     fprintf(plotOut, "#proc areadef\n"
@@ -443,7 +443,7 @@ void kmp_stats_output_module::printPloticusFile() {
                      "   titledetails: align=center size=16\n"
                      "   rectangle: 1 1 13 9\n"
                      "   xautorange: datafield=2,3\n"
-                     "   yautorange: -1 %d\n\n", 
+                     "   yautorange: -1 %d\n\n",
                      size);
 
     fprintf(plotOut, "#proc xaxis\n"
@@ -457,7 +457,7 @@ void kmp_stats_output_module::printPloticusFile() {
                      "   stubrange: 0 %d\n"
                      "   stubdetails: size=12\n"
                      "   label: Thread #\n"
-                     "   labeldetails: size=14\n\n", 
+                     "   labeldetails: size=14\n\n",
                      size-1);
 
     fprintf(plotOut, "#proc bars\n"
@@ -488,7 +488,7 @@ void kmp_stats_output_module::printPloticusFile() {
     return;
 }
 
-void kmp_stats_output_module::outputStats(const char* heading) 
+void kmp_stats_output_module::outputStats(const char* heading)
 {
     statistic allStats[TIMER_LAST];
     statistic allCounters[COUNTER_LAST];
@@ -529,7 +529,7 @@ void kmp_stats_output_module::outputStats(const char* heading)
             if ((timeStat::masterOnly(timer_e(s)) && (t != 0)) || // Timer is only valid on the master and this thread is a worker
                 (timeStat::workerOnly(timer_e(s)) && (t == 0)) || // Timer is only valid on a worker and this thread is the master
                 timeStat::synthesized(timer_e(s))                 // It's a synthesized stat, so there's no raw data for it.
-               )            
+               )
             {
                 continue;
             }
@@ -539,16 +539,14 @@ void kmp_stats_output_module::outputStats(const char* heading)
         }
 
         // Special handling for synthesized statistics.
-        // These just have to be coded specially here for now. 
-        // At present we only have one: the total parallel work done in each thread.
+        // These just have to be coded specially here for now.
+        // At present we only have a few:
+        // The total parallel work done in each thread.
         // The variance here makes it easy to see load imbalance over the whole program (though, of course,
         // it's possible to have a code with awful load balance in every parallel region but perfect load
         // balance oever the whole program.)
+        // The time spent in barriers in each thread.
         allStats[TIMER_Total_work].addSample ((*it)->getTimer(TIMER_OMP_work)->getTotal());
-
-        // Time waiting for work (synthesized)
-        if ((t != 0) || !timeStat::workerOnly(timer_e(TIMER_OMP_await_work)))
-            allStats[TIMER_Total_await_work].addSample ((*it)->getTimer(TIMER_OMP_await_work)->getTotal());
 
         // Time in explicit barriers.
         allStats[TIMER_Total_barrier].addSample ((*it)->getTimer(TIMER_OMP_barrier)->getTotal());
@@ -624,11 +622,11 @@ void __kmp_accumulate_stats_at_exit(void)
     return;
 }
 
-void __kmp_stats_init(void) 
+void __kmp_stats_init(void)
 {
     return;
 }
 
-} // extern "C" 
+} // extern "C"
 
 #endif // KMP_STATS_ENABLED

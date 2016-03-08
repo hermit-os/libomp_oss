@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
                =============================
 
    ---- Version of CMake required: v2.8.0 or above ----
- 
+
 ============================================
 How to call cmake initially, then repeatedly
 ============================================
@@ -58,9 +58,9 @@ How to call cmake initially, then repeatedly
   for an empty build directory, but other Build options are used at any time.
 - The file CMakeCache.txt which is created after the first call to cmake
   is a configuration file which holds all the values for the Build options.
-  These configuration values can be changed using a text editor to modify 
+  These configuration values can be changed using a text editor to modify
   CMakeCache.txt as opposed to using definitions on the command line.
-- To have cmake create a particular type of build generator file simply 
+- To have cmake create a particular type of build generator file simply
   inlude the -G <Generator name> option:
   $ cmake -G "Unix Makefiles" ...
   You can see a list of generators cmake supports by executing cmake with
@@ -121,7 +121,7 @@ Build options
 ==== Operating System ====
 ==========================
 -DLIBOMP_OS=lin|mac|win
-* Operating system can be lin (Linux*), mac (Mac*), or win (Windows*). 
+* Operating system can be lin (Linux*), mac (Mac*), or win (Windows*).
   If not specified, cmake will try to determine your current operating system.
 
 ======================
@@ -131,7 +131,7 @@ Build options
 * Architecture can be 32 (IA-32 architecture), 32e (Intel(R) 64 architecture),
   arm (ARM architecture), aarch64 (ARMv8 architecture), ppc64 (PPC64 architecture),
   or ppc64le (little endian PPC64 architecture).
-* This option, by default is chosen based on the probing the compiler for 
+* This option, by default is chosen based on the probing the compiler for
   architecture macros (e.g., is __x86_64__ predefined by compiler?).
 
 ---- First values listed are the default value ----
@@ -150,7 +150,7 @@ OpenMP version can be either 40 or 30.
 -DLIBOMP_MIC_ARCH=knc|knf
 Intel(R) MIC Architecture, can be knf or knc.
 This value is ignored if LIBOMP_ARCH != mic
-  
+
 -DLIBOMP_FORTRAN_MODULES=off|on
 Should the Fortran modules be created (requires Fortran compiler)
 
@@ -187,7 +187,7 @@ which runs the tests.
 ============================================
 ==== How to append flags to compilation ====
 ============================================
-- These flags are *appended*.  They do not 
+- These flags are *appended*.  They do not
   overwrite any of the preset flags.
 -DLIBOMP_CPPFLAGS=<space-separated flags>    -- Additional C Preprocessor flags
                                                (typically additional -Ddef=val flags)
@@ -195,7 +195,7 @@ which runs the tests.
 -DLIBOMP_CXXFLAGS=<space-separated flags>    -- Additional C++ compiler flags
 -DLIBOMP_ASMFLAGS=<space-separated flags>    -- Additional assembly flags
 -DLIBOMP_LDFLAGS=<space-separated flags>     -- Additional linker flags
--DLIBOMP_LIBFLAGS=<space-separated flags> -- Additional libraries to link 
+-DLIBOMP_LIBFLAGS=<space-separated flags> -- Additional libraries to link
                                                to during link phase
 -DLIBOMP_FFLAGS=<space-separated flags>  -- Additional Fortran compiler flags
 
@@ -209,10 +209,10 @@ with -O2 and -g flags activated (same as RelWithDebInfo). Then,
 the debug info is stripped out of the library and put into libomp.dbg
 This is done for interaction with Intel(R) Parallel Amplifier.
 
--DLIBOMP_USE_ADAPTIVE_LOCKS=true|false       
-Should adaptive (TSX-based) locks be included?  
-These are x86 specific.  This feature is turned on by default 
-for IA-32 architecture and Intel(R) 64 architecture. 
+-DLIBOMP_USE_ADAPTIVE_LOCKS=true|false
+Should adaptive (TSX-based) locks be included?
+These are x86 specific.  This feature is turned on by default
+for IA-32 architecture and Intel(R) 64 architecture.
 Otherwise, it is turned off.
 
 -DLIBOMP_USE_INTERNODE_ALIGNMENT=false|true
@@ -233,6 +233,18 @@ in the link command? This is true by default and should work for
 Linux*, Mac*, and Windows*.  The --version-script flag on Unix* based
 operating systems will be included regardless.
 
+-DLIBOMP_USE_HWLOC=off|on
+Should the Hwloc library be used for affinity?
+This option is not supported on Windows.
+http://www.open-mpi.org/projects/hwloc
+
+-DLIBOMP_HWLOC_INSTALL_DIR=/path/to/hwloc/install/dir
+Default: /usr/local
+This option is only used if LIBOMP_USE_HWLOC is on.
+Specifies install location of Hwloc. The configuration system will look for
+hwloc.h in ${LIBOMP_HWLOC_INSTALL_DIR}/include and the library in 
+${LIBOMP_HWLOC_INSTALL_DIR}/lib.
+
 ========================
 Examples usages of CMake
 ========================
@@ -250,7 +262,7 @@ cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_OS=mac -DLI
 
 - Build the library (architecture determined by probing compiler) using the
   Intel(R) C Compiler and the Intel(R) C++ Compiler. Also, create the fortran modules using
-  the Intel(R) Fortran Compiler, enabling the libomp-micro-tests target and using similar rules that build.pl 
+  the Intel(R) Fortran Compiler, enabling the libomp-micro-tests target and using similar rules that build.pl
   would use to build the library.
 cmake -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort -DLIBOMP_MICRO_TESTS=on -DLIBOMP_FORTRAN_MODULES=on -DLIBOMP_USE_BUILDPL_RULES=on ..
 

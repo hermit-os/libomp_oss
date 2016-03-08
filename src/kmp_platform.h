@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -39,6 +39,7 @@
 
 #define KMP_OS_LINUX    0
 #define KMP_OS_FREEBSD  0
+#define KMP_OS_NETBSD   0
 #define KMP_OS_DARWIN   0
 #define KMP_OS_WINDOWS  0
 #define KMP_OS_CNK      0
@@ -70,16 +71,21 @@
 # define KMP_OS_FREEBSD 1
 #endif
 
+#if ( defined __NetBSD__ )
+# undef KMP_OS_NETBSD
+# define KMP_OS_NETBSD 1
+#endif
+
 #if ( defined __bgq__ )
 # undef KMP_OS_CNK
 # define KMP_OS_CNK 1
 #endif
 
-#if (1 != KMP_OS_LINUX + KMP_OS_FREEBSD + KMP_OS_DARWIN + KMP_OS_WINDOWS)
+#if (1 != KMP_OS_LINUX + KMP_OS_FREEBSD + KMP_OS_NETBSD + KMP_OS_DARWIN + KMP_OS_WINDOWS)
 # error Unknown OS
 #endif
 
-#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_DARWIN
+#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_DARWIN
 # undef KMP_OS_UNIX
 # define KMP_OS_UNIX 1
 #endif

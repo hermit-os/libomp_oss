@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -42,24 +42,6 @@
 
 #define MIN_STACK       100
 
-static char const * cons_text_fort[] = {
-    "(none)",
-    "PARALLEL",
-    "work-sharing",             /* this is not called DO because of lowering of SECTIONS and WORKSHARE directives */
-    "ORDERED work-sharing",     /* this is not called DO ORDERED because of lowering of SECTIONS directives */
-    "SECTIONS",
-    "work-sharing",             /* this is not called SINGLE because of lowering of SECTIONS and WORKSHARE directives */
-    "TASKQ",
-    "TASKQ",
-    "TASKQ ORDERED",
-    "CRITICAL",
-    "ORDERED",                  /* in PARALLEL */
-    "ORDERED",                  /* in PDO */
-    "ORDERED",                  /* in TASKQ */
-    "MASTER",
-    "REDUCE",
-    "BARRIER"
-};
 
 static char const * cons_text_c[] = {
     "(none)",
@@ -89,7 +71,6 @@ static char const * cons_text_c[] = {
     cons_text_c[ (p)->stack_data[ tos ].type ],       \
     get_src( (p)->stack_data[ tos ].ident )
 
-static int const cons_text_fort_num = sizeof( cons_text_fort ) / sizeof( char const * );
 static int const cons_text_c_num    = sizeof( cons_text_c    ) / sizeof( char const * );
 
 /* ------------------------------------------------------------------------ */
@@ -225,6 +206,7 @@ __kmp_free_cons_stack( void * ptr ) {
 }
 
 
+#if KMP_DEBUG
 static void
 dump_cons_stack( int gtid, struct cons_header * p ) {
     int i;
@@ -243,6 +225,7 @@ dump_cons_stack( int gtid, struct cons_header * p ) {
     __kmp_debug_printf( "%s", buffer.str );
     __kmp_str_buf_free( & buffer );
 }
+#endif
 
 void
 __kmp_push_parallel( int gtid, ident_t const * ident )

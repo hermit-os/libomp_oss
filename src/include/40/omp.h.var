@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1985-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1985-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -35,10 +35,10 @@
 #ifndef __OMP_H
 #   define __OMP_H
 
-#   define KMP_VERSION_MAJOR    $KMP_VERSION_MAJOR
-#   define KMP_VERSION_MINOR    $KMP_VERSION_MINOR
-#   define KMP_VERSION_BUILD    $KMP_VERSION_BUILD
-#   define KMP_BUILD_DATE       "$KMP_BUILD_DATE"
+#   define KMP_VERSION_MAJOR    @KMP_VERSION_MAJOR@
+#   define KMP_VERSION_MINOR    @KMP_VERSION_MINOR@
+#   define KMP_VERSION_BUILD    @KMP_VERSION_BUILD@
+#   define KMP_BUILD_DATE       "@KMP_BUILD_DATE@"
 
 #   ifdef __cplusplus
     extern "C" {
@@ -103,20 +103,6 @@
     extern void   __KAI_KMPC_CONVENTION  omp_unset_nest_lock   (omp_nest_lock_t *);
     extern void   __KAI_KMPC_CONVENTION  omp_destroy_nest_lock (omp_nest_lock_t *);
     extern int    __KAI_KMPC_CONVENTION  omp_test_nest_lock    (omp_nest_lock_t *);
-
-    /* lock hint type for dynamic user lock */
-    typedef enum kmp_lock_hint_t {
-        kmp_lock_hint_none = 0,
-        kmp_lock_hint_contended,
-        kmp_lock_hint_uncontended,
-        kmp_lock_hint_nonspeculative,
-        kmp_lock_hint_speculative,
-        kmp_lock_hint_adaptive,
-    } kmp_lock_hint_t;
-
-    /* hinted lock initializers */
-    extern void __KAI_KMPC_CONVENTION kmp_init_lock_hinted(omp_lock_t *, kmp_lock_hint_t);
-    extern void __KAI_KMPC_CONVENTION kmp_init_nest_lock_hinted(omp_nest_lock_t *, kmp_lock_hint_t);
 
     /* time API functions */
     extern double __KAI_KMPC_CONVENTION  omp_get_wtime (void);

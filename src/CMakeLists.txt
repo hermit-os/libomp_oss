@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -42,7 +42,7 @@ add_custom_target(libomp-clean-common COMMAND ${CMAKE_COMMAND} -E remove -f ${ex
 
 # --- Put headers in convenient locations post build ---
 if(${LIBOMP_COPY_EXPORTS})
-    add_custom_command(TARGET libomp-common POST_BUILD 
+    add_custom_command(TARGET libomp-common POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${export_cmn_dir}
         COMMAND ${CMAKE_COMMAND} -E copy omp.h ${export_cmn_dir}
         COMMAND ${CMAKE_COMMAND} -E copy omp_lib.h ${export_cmn_dir}
@@ -69,7 +69,10 @@ endif()
 
 # preprocessor flags (-D definitions and -I includes)
 # Grab environment variable CPPFLAGS and append those to definitions
-set(include_dirs ${CMAKE_CURRENT_BINARY_DIR} ${src_dir} ${src_dir}/i18n ${inc_dir} ${src_dir}/thirdparty/ittnotify)
+set(include_dirs ${CMAKE_CURRENT_BINARY_DIR} ${src_dir} ${src_dir}/i18n ${inc_dir} ${src_dir}/thirdparty/ittnotify ${src_dir}/thirdparty/safeclib)
+if(${LIBOMP_USE_HWLOC})
+    set(include_dirs ${include_dirs} ${LIBOMP_HWLOC_INSTALL_DIR}/include)
+endif()
 include_directories(${include_dirs})
 
 # objects depend on : .inc files and omp.h
@@ -82,7 +85,7 @@ if(${WINDOWS})
     list(APPEND lib_src_files ${CMAKE_CURRENT_BINARY_DIR}/libiomp.rc)
 endif()
 
-# Remove any cmake-automatic linking of libraries by linker, This is so linux 
+# Remove any cmake-automatic linking of libraries by linker, This is so linux
 # and mac don't include libstdc++ just because we compile c++ files.
 if(${LIBOMP_USE_PREDEFINED_LINKER_FLAGS})
     set(CMAKE_C_IMPLICIT_LINK_LIBRARIES   "")
@@ -92,12 +95,12 @@ endif()
 
 # --- ${lib_file} rule ---
 add_library(omp SHARED ${lib_src_files})
-set_target_properties(omp PROPERTIES 
-    PREFIX "" SUFFIX ""        # Take control 
+set_target_properties(omp PROPERTIES
+    PREFIX "" SUFFIX ""        # Take control
     OUTPUT_NAME "${lib_file}"  # of output name
-    LINK_FLAGS  "${LD_FLAGS}"   
+    LINK_FLAGS  "${LD_FLAGS}"
     LINKER_LANGUAGE C          # use C Compiler for linking step
-    SKIP_BUILD_RPATH true      # have Mac linker -install_name just be "-install_name libomp.dylib"
+    MACOSX_RPATH true          # dylib will include "@rpath/" prefix
 )
 
 # --- Copy libomp into exports directory post build ---
@@ -128,7 +131,7 @@ if(${WINDOWS})
 endif()
 
 # Set the compiler flags for each type of source
-set_source_files_properties(${lib_c_items} 
+set_source_files_properties(${lib_c_items}
                             ${imp_c_items} PROPERTIES COMPILE_FLAGS "${C_FLAGS}")
 set_source_files_properties(${lib_cxx_items} PROPERTIES COMPILE_FLAGS "${CXX_FLAGS}")
 if(${WINDOWS})
@@ -197,7 +200,7 @@ if(${WINDOWS})
             set(LIBOMPIMP_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
         endif()
         if(${LIBOMP_COPY_EXPORTS})
-            add_custom_command(TARGET ompimp POST_BUILD 
+            add_custom_command(TARGET ompimp POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory ${export_lib_dir}
                 COMMAND ${CMAKE_COMMAND} -E copy ${LIBOMPIMP_OUTPUT_DIRECTORY}/${imp_file} ${export_lib_dir}
             )
@@ -249,7 +252,7 @@ if(${LIBOMP_MICRO_TESTS})
     if(${MIC} AND ${LIBOMP_TEST_INSTR})
         add_dependencies(libomp-micro-tests libomp-test-instr)
     endif()
-    if(${LIBOMP_TEST_DEPS}) 
+    if(${LIBOMP_TEST_DEPS})
         add_dependencies(libomp-micro-tests libomp-test-deps)
     endif()
 endif()
@@ -280,7 +283,7 @@ if(${LIBOMP_FORTRAN_MODULES})
         COMMAND ${CMAKE_Fortran_COMPILER} -c ${F_FLAGS} ${omp_lib_f}
         DEPENDS ${omp_lib_f}
     )
-    # clean omp_lib.o from build directory when "make clean" 
+    # clean omp_lib.o from build directory when "make clean"
     set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES omp_lib${obj})
 endif()
 
@@ -305,9 +308,9 @@ macro(expand_vars_recipe file_dir filename)
 endmacro()
 string_to_list("${ev_flags}" ev_flags)
 # omp_lib.h  : ev-flags += -D KMP_INT_PTR_KIND="int_ptr_kind()"
-set_source_files_properties(omp_lib.h PROPERTIES EV_COMPILE_DEFINITIONS "-D KMP_INT_PTR_KIND=\"int_ptr_kind()\"") 
+set_source_files_properties(omp_lib.h PROPERTIES EV_COMPILE_DEFINITIONS "-D KMP_INT_PTR_KIND=\"int_ptr_kind()\"")
 # libiomp.rc : ev-flags += -D KMP_FILE=$(lib_file)
-set_source_files_properties(libiomp.rc PROPERTIES EV_COMPILE_DEFINITIONS "-D KMP_FILE=${lib_file}") 
+set_source_files_properties(libiomp.rc PROPERTIES EV_COMPILE_DEFINITIONS "-D KMP_FILE=${lib_file}")
 expand_vars_recipe(${CMAKE_CURRENT_SOURCE_DIR}/include/${LIBOMP_OMP_VERSION} omp.h)
 expand_vars_recipe(${CMAKE_CURRENT_SOURCE_DIR}/include/${LIBOMP_OMP_VERSION} ompt.h)
 expand_vars_recipe(${CMAKE_CURRENT_SOURCE_DIR}/include/${LIBOMP_OMP_VERSION} omp_lib.h)
@@ -331,14 +334,22 @@ if(${WINDOWS})
         install(TARGETS ompimp ARCHIVE DESTINATION lib${LIBOMP_LIBDIR_SUFFIX})
     endif()
 else()
-    install(TARGETS omp LIBRARY DESTINATION lib${LIBOMP_LIBDIR_SUFFIX}) 
+    install(TARGETS omp LIBRARY DESTINATION lib${LIBOMP_LIBDIR_SUFFIX})
 endif()
 install(
-    FILES 
-    ${CMAKE_CURRENT_BINARY_DIR}/omp.h 
+    FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/omp.h
     DESTINATION ${LIBOMP_HEADERS_INSTALL_PATH}
 )
 if(${LIBOMP_OMPT_SUPPORT})
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ompt.h DESTINATION ${LIBOMP_HEADERS_INSTALL_PATH})
+endif()
+if(${LIBOMP_FORTRAN_MODULES})
+  install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/omp_lib.h
+    ${CMAKE_CURRENT_BINARY_DIR}/omp_lib.mod
+    ${CMAKE_CURRENT_BINARY_DIR}/omp_lib_kinds.mod
+    DESTINATION ${LIBOMP_HEADERS_INSTALL_PATH}
+  )
 endif()
 

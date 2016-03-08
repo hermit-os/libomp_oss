@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -59,9 +59,9 @@ info:
 	@echo omp_os=$(omp_os)
 	@echo arch=$(arch)
 ifeq "$(arch)" "mic"
-	@echo mic_arch=$(mic_arch)	
+	@echo mic_arch=$(mic_arch)
 endif
-	@echo compiler=$(compiler)	
+	@echo compiler=$(compiler)
 	@echo mic=$(mic)
 	@echo mode=$(mode)
 	@echo jobs=$(jobs)

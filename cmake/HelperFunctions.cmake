@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -30,10 +30,10 @@
 
 ####################################### FUNCTIONS/MACROS ###########################################
 # It should be noted that in cmake, functions can only be used on a single line with the return value
-# stored in a parameter you send to the function.  There isn't a true return value.  So technically, 
+# stored in a parameter you send to the function.  There isn't a true return value.  So technically,
 # all functions would have a C/C++ prototype of:
 # void function_name(parameter1, parameter2, ...);
-#  
+#
 # If you want a return value, you have to use a parameter so the function prototype would be:
 # void function_name(input_parameter1, input_parameter2, ...,  return_value)
 # ##################
@@ -73,10 +73,10 @@ macro(debug_say_var var)
 endmacro()
 
 # void set_legal_arch(string* return_arch_string);
-# - returns (through return_arch_string) the formal architecture 
+# - returns (through return_arch_string) the formal architecture
 #   string or warns user of unknown architecture
 function(set_legal_arch return_arch_string)
-    if(${IA32}) 
+    if(${IA32})
         set(${return_arch_string} "IA-32" PARENT_SCOPE)
     elseif(${INTEL64})
         set(${return_arch_string} "Intel(R) 64" PARENT_SCOPE)
@@ -90,7 +90,7 @@ function(set_legal_arch return_arch_string)
 	    set(${return_arch_string} "PPC64BE" PARENT_SCOPE)
 	elseif(${PPC64LE})
 	    set(${return_arch_string} "PPC64LE" PARENT_SCOPE)
-    elseif(${AARCH64})                                                                                   
+    elseif(${AARCH64})
         set(${return_arch_string} "AARCH64" PARENT_SCOPE)
     else()
         warning_say("set_legal_arch(): Warning: Unknown architecture...")
@@ -228,7 +228,7 @@ endfunction()
 function(string_to_list str return_list)
     set(outstr)
     string(REGEX REPLACE "[ \t]+" ";" outstr "${str}")
-    set(${return_list} "${outstr}" PARENT_SCOPE) 
+    set(${return_list} "${outstr}" PARENT_SCOPE)
 endfunction()
 
 # void get_date(string* return_date);
@@ -262,7 +262,7 @@ function(find_a_program program_name extra_paths fail_on_not_found return_variab
     set(${return_variable_name} ${${return_variable_name}} PARENT_SCOPE)
 endfunction()
 
-# WINDOWS SPECIFIC 
+# WINDOWS SPECIFIC
 # void replace_md_with_mt(string flags_var)
 # - This macro replaces the /MD compiler flags (Windows specific) with /MT compiler flags
 # - This does nothing if no /MD flags were replaced.

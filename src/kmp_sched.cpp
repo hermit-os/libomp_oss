@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -103,6 +103,8 @@ __kmp_for_static_init(
     typename traits_t< T >::signed_t  chunk
 ) {
     KMP_COUNT_BLOCK(OMP_FOR_static);
+    KMP_TIME_BLOCK (FOR_static_scheduling);
+
     typedef typename traits_t< T >::unsigned_t  UT;
     typedef typename traits_t< T >::signed_t    ST;
     /*  this all has to be changed back to TID and such.. */
@@ -114,8 +116,14 @@ __kmp_for_static_init(
     register kmp_info_t *th = __kmp_threads[ gtid ];
 
 #if OMPT_SUPPORT && OMPT_TRACE
-    ompt_team_info_t *team_info = __ompt_get_teaminfo(0, NULL);
-    ompt_task_info_t *task_info = __ompt_get_taskinfo(0);
+    ompt_team_info_t *team_info = NULL;
+    ompt_task_info_t *task_info = NULL;
+
+    if (ompt_enabled) {
+        // Only fully initialize variables needed by OMPT if OMPT is enabled.
+        team_info = __ompt_get_teaminfo(0, NULL);
+        task_info = __ompt_get_taskinfo(0);
+    }
 #endif
 
     KMP_DEBUG_ASSERT( plastiter && plower && pupper && pstride );
@@ -163,17 +171,21 @@ __kmp_for_static_init(
         KE_TRACE( 10, ("__kmpc_for_static_init: T#%d return\n", global_tid ) );
 
 #if OMPT_SUPPORT && OMPT_TRACE
-        if ((ompt_status == ompt_status_track_callback) &&
+        if (ompt_enabled &&
             ompt_callbacks.ompt_callback(ompt_event_loop_begin)) {
             ompt_callbacks.ompt_callback(ompt_event_loop_begin)(
                 team_info->parallel_id, task_info->task_id,
                 team_info->microtask);
         }
 #endif
+        KMP_COUNT_VALUE (FOR_static_iterations, 0);
         return;
     }
 
     #if OMP_40_ENABLED
+    // Although there are schedule enumerations above kmp_ord_upper which are not schedules for "distribute",
+    // the only ones which are useful are dynamic, so cannot be seen here, since this codepath is only executed
+    // for static schedules.
     if ( schedtype > kmp_ord_upper ) {
         // we are in DISTRIBUTE construct
         schedtype += kmp_sch_static - kmp_distribute_static;      // AC: convert to usual schedule type
@@ -208,7 +220,7 @@ __kmp_for_static_init(
         KE_TRACE( 10, ("__kmpc_for_static_init: T#%d return\n", global_tid ) );
 
 #if OMPT_SUPPORT && OMPT_TRACE
-        if ((ompt_status == ompt_status_track_callback) &&
+        if (ompt_enabled &&
             ompt_callbacks.ompt_callback(ompt_event_loop_begin)) {
             ompt_callbacks.ompt_callback(ompt_event_loop_begin)(
                 team_info->parallel_id, task_info->task_id,
@@ -236,7 +248,7 @@ __kmp_for_static_init(
         KE_TRACE( 10, ("__kmpc_for_static_init: T#%d return\n", global_tid ) );
 
 #if OMPT_SUPPORT && OMPT_TRACE
-        if ((ompt_status == ompt_status_track_callback) &&
+        if (ompt_enabled &&
             ompt_callbacks.ompt_callback(ompt_event_loop_begin)) {
             ompt_callbacks.ompt_callback(ompt_event_loop_begin)(
                 team_info->parallel_id, task_info->task_id,
@@ -251,12 +263,11 @@ __kmp_for_static_init(
         trip_count = *pupper - *plower + 1;
     } else if (incr == -1) {
         trip_count = *plower - *pupper + 1;
+    } else if ( incr > 0 ) {
+        // upper-lower can exceed the limit of signed type
+        trip_count = (UT)(*pupper - *plower) / incr + 1;
     } else {
-        if ( incr > 1 ) {  // the check is needed for unsigned division when incr < 0
-            trip_count = (*pupper - *plower) / incr + 1;
-        } else {
-            trip_count = (*plower - *pupper) / ( -incr ) + 1;
-        }
+        trip_count = (UT)(*plower - *pupper) / (-incr) + 1;
     }
 
     if ( __kmp_env_consistency_check ) {
@@ -265,6 +276,7 @@ __kmp_for_static_init(
             __kmp_error_construct( kmp_i18n_msg_CnsIterationRangeTooLarge, ct_pdo, loc );
         }
     }
+    KMP_COUNT_VALUE (FOR_static_iterations, trip_count);
 
     /* compute remaining parameters */
     switch ( schedtype ) {
@@ -367,7 +379,7 @@ __kmp_for_static_init(
     KE_TRACE( 10, ("__kmpc_for_static_init: T#%d return\n", global_tid ) );
 
 #if OMPT_SUPPORT && OMPT_TRACE
-    if ((ompt_status == ompt_status_track_callback) &&
+    if (ompt_enabled &&
         ompt_callbacks.ompt_callback(ompt_event_loop_begin)) {
         ompt_callbacks.ompt_callback(ompt_event_loop_begin)(
             team_info->parallel_id, task_info->task_id, team_info->microtask);
@@ -391,7 +403,7 @@ __kmp_dist_for_static_init(
     typename traits_t< T >::signed_t  incr,
     typename traits_t< T >::signed_t  chunk
 ) {
-    KMP_COUNT_BLOCK(OMP_DISTR_FOR_static);
+    KMP_COUNT_BLOCK(OMP_DISTRIBUTE);
     typedef typename traits_t< T >::unsigned_t  UT;
     typedef typename traits_t< T >::signed_t    ST;
     register kmp_uint32  tid;
@@ -439,10 +451,10 @@ __kmp_dist_for_static_init(
     }
     tid = __kmp_tid_from_gtid( gtid );
     th = __kmp_threads[gtid];
-    KMP_DEBUG_ASSERT(th->th.th_teams_microtask);   // we are in the teams construct
     nth = th->th.th_team_nproc;
     team = th->th.th_team;
     #if OMP_40_ENABLED
+    KMP_DEBUG_ASSERT(th->th.th_teams_microtask);   // we are in the teams construct
     nteams = th->th.th_teams_size.nteams;
     #endif
     team_id = team->t.t_master_tid;
@@ -453,9 +465,13 @@ __kmp_dist_for_static_init(
         trip_count = *pupper - *plower + 1;
     } else if(incr == -1) {
         trip_count = *plower - *pupper + 1;
+    } else if ( incr > 0 ) {
+        // upper-lower can exceed the limit of signed type
+        trip_count = (UT)(*pupper - *plower) / incr + 1;
     } else {
-        trip_count = (ST)(*pupper - *plower) / incr + 1; // cast to signed to cover incr<0 case
+        trip_count = (UT)(*plower - *pupper) / (-incr) + 1;
     }
+
     *pstride = *pupper - *plower;  // just in case (can be unused)
     if( trip_count <= nteams ) {
         KMP_DEBUG_ASSERT(
@@ -519,8 +535,11 @@ __kmp_dist_for_static_init(
             trip_count = *pupperDist - *plower + 1;
         } else if(incr == -1) {
             trip_count = *plower - *pupperDist + 1;
+        } else if ( incr > 1 ) {
+            // upper-lower can exceed the limit of signed type
+            trip_count = (UT)(*pupperDist - *plower) / incr + 1;
         } else {
-            trip_count = (ST)(*pupperDist - *plower) / incr + 1;
+            trip_count = (UT)(*plower - *pupperDist) / (-incr) + 1;
         }
         KMP_DEBUG_ASSERT( trip_count );
         switch( schedule ) {
@@ -676,9 +695,9 @@ __kmp_team_static_init(
         }
     }
     th = __kmp_threads[gtid];
-    KMP_DEBUG_ASSERT(th->th.th_teams_microtask);   // we are in the teams construct
     team = th->th.th_team;
     #if OMP_40_ENABLED
+    KMP_DEBUG_ASSERT(th->th.th_teams_microtask);   // we are in the teams construct
     nteams = th->th.th_teams_size.nteams;
     #endif
     team_id = team->t.t_master_tid;
@@ -689,8 +708,11 @@ __kmp_team_static_init(
         trip_count = upper - lower + 1;
     } else if(incr == -1) {
         trip_count = lower - upper + 1;
+    } else if ( incr > 0 ) {
+        // upper-lower can exceed the limit of signed type
+        trip_count = (UT)(upper - lower) / incr + 1;
     } else {
-        trip_count = (ST)(upper - lower) / incr + 1; // cast to signed to cover incr<0 case
+        trip_count = (UT)(lower - upper) / (-incr) + 1;
     }
     if( chunk < 1 )
         chunk = 1;

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -292,7 +292,7 @@ sub get_gnu_compiler_version($) {
                 ( $ver, $bld ) = ( $1, $2 );
             } elsif ( $stdout =~ m{^.*? \((Debian|Ubuntu).*?\) (\d+\.\d+\.\d+)}m ) {
                 # gcc (Debian 4.7.2-22) 4.7.2
-                # Debian support from Sylvestre Ledru 
+                # Debian support from Sylvestre Ledru
                 # Thanks!
                 $ver = $2;
             }; # if
@@ -328,7 +328,7 @@ sub get_clang_compiler_version($) {
             } elsif ( $stdout =~ m{^.*? (\d+\.\d+)( \((.*)\))?}m ) {
                 # clang version 3.3 (tags/RELEASE_33/final)
                 ( $ver, $bld ) = ( $1, $3 );
-            } 
+            }
         }; # if
         if ( defined( $ver ) ) {
             $version = $ver . ( defined( $bld ) ? " ($bld)" : "" );
@@ -404,9 +404,9 @@ sub get_ms_linker_version() {
 
 my $make;
 my $intel       = 1;             # Check Intel compilers.
-my $fortran     = 0;             # Check for corresponding Fortran compiler, ifort for intel 
-                                 #                                           gfortran for gnu 
-                                 #                                           gfortran for clang 
+my $fortran     = 0;             # Check for corresponding Fortran compiler, ifort for intel
+                                 #                                           gfortran for gnu
+                                 #                                           gfortran for clang
 my $clang       = 0;             # Check Clang Compilers.
 my $intel_compilers = {
     "lin" => { c => "icc", cpp => "icpc", f => "ifort" },
@@ -461,8 +461,8 @@ if ( $target_os eq "lin" or $target_os eq "mac" ) {
     # also, if user specifies clang as build compiler, then gfortran is assumed fortran compiler
     if ( $fortran and not $intel ) {
         push( @versions, [ "GNU Fortran Compiler", get_gnu_compiler_version( $gnu_compilers->{ $target_os }->{ f } ) ] );
-    }; 
-}; 
+    };
+};
 if ( $target_os eq "win" ) {
     push( @versions, [ "MS C/C++ Compiler",  get_ms_compiler_version() ] );
     push( @versions, [ "MS Linker",          get_ms_linker_version() ] );

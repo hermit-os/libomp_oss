@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -65,6 +65,9 @@
 
 #define OMPT_API_ROUTINE static
 
+#ifndef OMPT_STR_MATCH
+#define OMPT_STR_MATCH(haystack, needle) (!strcasecmp(haystack, needle))
+#endif
 
 
 /*****************************************************************************
@@ -77,13 +80,27 @@ typedef struct {
 } ompt_state_info_t;
 
 
+enum tool_setting_e {
+    omp_tool_error,
+    omp_tool_unset,
+    omp_tool_disabled,
+    omp_tool_enabled
+};
+
+
+typedef void (*ompt_initialize_t) (
+    ompt_function_lookup_t ompt_fn_lookup,
+    const char *version,
+    unsigned int ompt_version
+);
+
+
 
 /*****************************************************************************
  * global variables
  ****************************************************************************/
 
-ompt_status_t ompt_status = ompt_status_ready;
-
+int ompt_enabled = 0;
 
 ompt_state_info_t ompt_state_info[] = {
 #define ompt_state_macro(state, code) { # state, state },
@@ -91,8 +108,9 @@ ompt_state_info_t ompt_state_info[] = {
 #undef ompt_state_macro
 };
 
-
 ompt_callbacks_t ompt_callbacks;
+
+static ompt_initialize_t  ompt_initialize_fn = NULL;
 
 
 
@@ -102,6 +120,200 @@ ompt_callbacks_t ompt_callbacks;
 
 static ompt_interface_fn_t ompt_fn_lookup(const char *s);
 
+OMPT_API_ROUTINE ompt_thread_id_t ompt_get_thread_id(void);
+
+
+/*****************************************************************************
+ * initialization and finalization (private operations)
+ ****************************************************************************/
+
+/* On Unix-like systems that support weak symbols the following implementation
+ * of ompt_tool() will be used in case no tool-supplied implementation of
+ * this function is present in the address space of a process.
+ *
+ * On Windows, the ompt_tool_windows function is used to find the
+ * ompt_tool symbol across all modules loaded by a process. If ompt_tool is
+ * found, ompt_tool's return value is used to initialize the tool. Otherwise,
+ * NULL is returned and OMPT won't be enabled */
+#if KMP_OS_UNIX
+_OMP_EXTERN
+__attribute__ (( weak ))
+ompt_initialize_t ompt_tool()
+{
+#if OMPT_DEBUG
+    printf("ompt_tool() is called from the RTL\n");
+#endif
+    return NULL;
+}
+
+#elif KMP_OS_WINDOWS
+
+#include <psapi.h>
+#pragma comment(lib, "psapi.lib")
+#define ompt_tool ompt_tool_windows
+
+// The number of loaded modules to start enumeration with EnumProcessModules()
+#define NUM_MODULES 128
+
+static
+ompt_initialize_t ompt_tool_windows()
+{
+    int i;
+    DWORD needed, new_size;
+    HMODULE *modules;
+    HANDLE  process = GetCurrentProcess();
+    modules = (HMODULE*)malloc( NUM_MODULES * sizeof(HMODULE) );
+    ompt_initialize_t (*ompt_tool_p)() = NULL;
+
+#if OMPT_DEBUG
+    printf("ompt_tool_windows(): looking for ompt_tool\n");
+#endif
+    if (!EnumProcessModules( process, modules, NUM_MODULES * sizeof(HMODULE),
+                              &needed)) {
+        // Regardless of the error reason use the stub initialization function
+        free(modules);
+        return NULL;
+    }
+    // Check if NUM_MODULES is enough to list all modules
+    new_size = needed / sizeof(HMODULE);
+    if (new_size > NUM_MODULES) {
+#if OMPT_DEBUG
+    printf("ompt_tool_windows(): resize buffer to %d bytes\n", needed);
+#endif
+        modules = (HMODULE*)realloc( modules, needed );
+        // If resizing failed use the stub function.
+        if (!EnumProcessModules(process, modules, needed, &needed)) {
+            free(modules);
+            return NULL;
+        }
+    }
+    for (i = 0; i < new_size; ++i) {
+        (FARPROC &)ompt_tool_p = GetProcAddress(modules[i], "ompt_tool");
+        if (ompt_tool_p) {
+#if OMPT_DEBUG
+            TCHAR modName[MAX_PATH];
+            if (GetModuleFileName(modules[i], modName, MAX_PATH))
+                printf("ompt_tool_windows(): ompt_tool found in module %s\n",
+                       modName);
+#endif
+            free(modules);
+            return ompt_tool_p();
+        }
+#if OMPT_DEBUG
+        else {
+            TCHAR modName[MAX_PATH];
+            if (GetModuleFileName(modules[i], modName, MAX_PATH))
+                printf("ompt_tool_windows(): ompt_tool not found in module %s\n",
+                       modName);
+        }
+#endif
+    }
+    free(modules);
+    return NULL;
+}
+#else
+# error Either __attribute__((weak)) or psapi.dll are required for OMPT support
+#endif // KMP_OS_UNIX
+
+void ompt_pre_init()
+{
+    //--------------------------------------------------
+    // Execute the pre-initialization logic only once.
+    //--------------------------------------------------
+    static int ompt_pre_initialized = 0;
+
+    if (ompt_pre_initialized) return;
+
+    ompt_pre_initialized = 1;
+
+    //--------------------------------------------------
+    // Use a tool iff a tool is enabled and available.
+    //--------------------------------------------------
+    const char *ompt_env_var = getenv("OMP_TOOL");
+    tool_setting_e tool_setting = omp_tool_error;
+
+    if (!ompt_env_var  || !strcmp(ompt_env_var, ""))
+        tool_setting = omp_tool_unset;
+    else if (OMPT_STR_MATCH(ompt_env_var, "disabled"))
+        tool_setting = omp_tool_disabled;
+    else if (OMPT_STR_MATCH(ompt_env_var, "enabled"))
+        tool_setting = omp_tool_enabled;
+
+#if OMPT_DEBUG
+    printf("ompt_pre_init(): tool_setting = %d\n", tool_setting);
+#endif
+    switch(tool_setting) {
+    case omp_tool_disabled:
+        break;
+
+    case omp_tool_unset:
+    case omp_tool_enabled:
+        ompt_initialize_fn = ompt_tool();
+        if (ompt_initialize_fn) {
+            ompt_enabled = 1;
+        }
+        break;
+
+    case omp_tool_error:
+        fprintf(stderr,
+            "Warning: OMP_TOOL has invalid value \"%s\".\n"
+            "  legal values are (NULL,\"\",\"disabled\","
+            "\"enabled\").\n", ompt_env_var);
+        break;
+    }
+#if OMPT_DEBUG
+    printf("ompt_pre_init(): ompt_enabled = %d\n", ompt_enabled);
+#endif
+}
+
+
+void ompt_post_init()
+{
+    //--------------------------------------------------
+    // Execute the post-initialization logic only once.
+    //--------------------------------------------------
+    static int ompt_post_initialized = 0;
+
+    if (ompt_post_initialized) return;
+
+    ompt_post_initialized = 1;
+
+    //--------------------------------------------------
+    // Initialize the tool if so indicated.
+    //--------------------------------------------------
+    if (ompt_enabled) {
+        ompt_initialize_fn(ompt_fn_lookup, ompt_get_runtime_version(),
+                           OMPT_VERSION);
+
+        ompt_thread_t *root_thread = ompt_get_thread();
+
+        ompt_set_thread_state(root_thread, ompt_state_overhead);
+
+        if (ompt_callbacks.ompt_callback(ompt_event_thread_begin)) {
+            ompt_callbacks.ompt_callback(ompt_event_thread_begin)
+                (ompt_thread_initial, ompt_get_thread_id());
+        }
+
+        ompt_set_thread_state(root_thread, ompt_state_work_serial);
+    }
+}
+
+
+void ompt_fini()
+{
+    if (ompt_enabled) {
+        if (ompt_callbacks.ompt_callback(ompt_event_runtime_shutdown)) {
+            ompt_callbacks.ompt_callback(ompt_event_runtime_shutdown)();
+        }
+    }
+
+    ompt_enabled = 0;
+}
+
+
+/*****************************************************************************
+ * interface operations
+ ****************************************************************************/
 
 /*****************************************************************************
  * state
@@ -173,88 +385,6 @@ OMPT_API_ROUTINE int ompt_get_callback(ompt_event_t evid, ompt_callback_t *cb)
     default: return ompt_get_callback_failure;
     }
 }
-
-
-
-/*****************************************************************************
- * intialization/finalization
- ****************************************************************************/
-
-_OMP_EXTERN
-#if KMP_OS_UNIX
-__attribute__ (( weak ))
-#endif
-int ompt_initialize(ompt_function_lookup_t ompt_fn_lookup, const char *version,
-                    unsigned int ompt_version)
-{
-    return no_tool_present;
-}
-
-enum tool_setting_e {
-    omp_tool_error,
-    omp_tool_unset,
-    omp_tool_disabled,
-    omp_tool_enabled
-};
-
-void ompt_init()
-{
-    static int ompt_initialized = 0;
-
-    if (ompt_initialized) return;
-
-    const char *ompt_env_var = getenv("OMP_TOOL");
-    tool_setting_e tool_setting = omp_tool_error;
-
-    if (!ompt_env_var  || !strcmp(ompt_env_var, ""))
-        tool_setting = omp_tool_unset;
-    else if (!strcmp(ompt_env_var, "disabled"))
-        tool_setting = omp_tool_disabled;
-    else if (!strcmp(ompt_env_var, "enabled"))
-        tool_setting = omp_tool_enabled;
-
-    switch(tool_setting) {
-    case omp_tool_disabled:
-        ompt_status = ompt_status_disabled;
-        break;
-
-    case omp_tool_unset:
-    case omp_tool_enabled:
-    {
-        const char *runtime_version = __ompt_get_runtime_version_internal();
-        int ompt_init_val =
-            ompt_initialize(ompt_fn_lookup, runtime_version, OMPT_VERSION);
-
-        if (ompt_init_val) {
-            ompt_status = ompt_status_track_callback;
-            __ompt_init_internal();
-        }
-        break;
-    }
-
-    case omp_tool_error:
-        fprintf(stderr,
-            "Warning: OMP_TOOL has invalid value \"%s\".\n"
-            "  legal values are (NULL,\"\",\"disabled\","
-            "\"enabled\").\n", ompt_env_var);
-        break;
-    }
-
-    ompt_initialized = 1;
-}
-
-
-void ompt_fini()
-{
-    if (ompt_status == ompt_status_track_callback) {
-        if (ompt_callbacks.ompt_callback(ompt_event_runtime_shutdown)) {
-            ompt_callbacks.ompt_callback(ompt_event_runtime_shutdown)();
-        }
-    }
-
-    ompt_status = ompt_status_disabled;
-}
-
 
 
 /*****************************************************************************
@@ -336,48 +466,61 @@ OMPT_API_ROUTINE void *ompt_get_task_function(int depth)
  * placeholders
  ****************************************************************************/
 
+// Don't define this as static. The loader may choose to eliminate the symbol
+// even though it is needed by tools.
+#define OMPT_API_PLACEHOLDER
 
-OMPT_API_ROUTINE void omp_idle(void)
+// Ensure that placeholders don't have mangled names in the symbol table.
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+OMPT_API_PLACEHOLDER void ompt_idle(void)
 {
-    // this function is a placeholder used to represent the calling context of
+    // This function is a placeholder used to represent the calling context of
     // idle OpenMP worker threads. It is not meant to be invoked.
     assert(0);
 }
 
 
-OMPT_API_ROUTINE void omp_overhead(void)
+OMPT_API_PLACEHOLDER void ompt_overhead(void)
 {
-    // this function is a placeholder used to represent the OpenMP context of
+    // This function is a placeholder used to represent the OpenMP context of
     // threads working in the OpenMP runtime.  It is not meant to be invoked.
     assert(0);
 }
 
 
-OMPT_API_ROUTINE void omp_barrier_wait(void)
+OMPT_API_PLACEHOLDER void ompt_barrier_wait(void)
 {
-    // this function is a placeholder used to represent the OpenMP context of
+    // This function is a placeholder used to represent the OpenMP context of
     // threads waiting for a barrier in the OpenMP runtime. It is not meant
     // to be invoked.
     assert(0);
 }
 
 
-OMPT_API_ROUTINE void omp_task_wait(void)
+OMPT_API_PLACEHOLDER void ompt_task_wait(void)
 {
-    // this function is a placeholder used to represent the OpenMP context of
+    // This function is a placeholder used to represent the OpenMP context of
     // threads waiting for a task in the OpenMP runtime. It is not meant
     // to be invoked.
     assert(0);
 }
 
 
-OMPT_API_ROUTINE void omp_mutex_wait(void)
+OMPT_API_PLACEHOLDER void ompt_mutex_wait(void)
 {
-    // this function is a placeholder used to represent the OpenMP context of
+    // This function is a placeholder used to represent the OpenMP context of
     // threads waiting for a mutex in the OpenMP runtime. It is not meant
     // to be invoked.
     assert(0);
 }
+
+#ifdef __cplusplus
+};
+#endif
 
 
 /*****************************************************************************
@@ -402,8 +545,7 @@ OMPT_API_ROUTINE int ompt_get_ompt_version()
 
 _OMP_EXTERN void ompt_control(uint64_t command, uint64_t modifier)
 {
-    if (ompt_status == ompt_status_track_callback &&
-        ompt_callbacks.ompt_callback(ompt_event_control)) {
+    if (ompt_enabled && ompt_callbacks.ompt_callback(ompt_event_control)) {
         ompt_callbacks.ompt_callback(ompt_event_control)(command, modifier);
     }
 }

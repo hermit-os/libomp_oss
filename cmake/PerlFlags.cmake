@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -48,7 +48,7 @@ function(set_ev_flags input_ev_flags)
     set_legal_type("${LIBOMP_LIB_TYPE}" legal_type)
     set_legal_arch("${LIBOMP_ARCH}" legal_arch)
     # need -D Revision="\$Revision" to show up
-    append_ev_flags("-D Revision=\"\\\\$$Revision\"") 
+    append_ev_flags("-D Revision=\"\\\\$$Revision\"")
     append_ev_flags("-D Date=\"\\\\$$Date\"")
     append_ev_flags("-D KMP_TYPE=\"${legal_type}\"")
     append_ev_flags("-D KMP_ARCH=\"${legal_arch}\"")
@@ -56,6 +56,8 @@ function(set_ev_flags input_ev_flags)
     append_ev_flags("-D KMP_VERSION_MINOR=0")
     append_ev_flags("-D KMP_VERSION_BUILD=${build_number}")
     append_ev_flags("-D KMP_BUILD_DATE=\"${date}\"")
+    append_ev_flags("-D KMP_VERSION_BUILD_YEAR=${LIBOMP_VERSION_BUILD_YEAR}")
+    append_ev_flags("-D KMP_VERSION_BUILD_MONTH_DAY=${LIBOMP_VERSION_BUILD_MONTH_DAY}")
     append_ev_flags("-D KMP_TARGET_COMPILER=12")
     if(${DEBUG_BUILD} OR ${RELWITHDEBINFO_BUILD})
         append_ev_flags("-D KMP_DIAG=1")
@@ -107,6 +109,9 @@ function(set_gd_flags input_gd_flags)
     endif()
     if(${LIBOMP_COMPILER_SUPPORTS_QUAD_PRECISION})
         append_gd_flags("-D HAVE_QUAD")
+    endif()
+    if(${LIBOMP_USE_DEBUGGER})
+        append_gd_flags("-D USE_DEBUGGER")
     endif()
     set(${input_gd_flags} "${local_gd_flags}" PARENT_SCOPE)
 endfunction()

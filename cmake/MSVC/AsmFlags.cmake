@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -39,7 +39,7 @@ function(append_assembler_specific_asm_flags input_asm_flags)
     append_asm_flags("-nologo") # Turn off tool banner.
     if(${IA32})
         append_asm_flags("-safeseh") # Registers exception handlers for safe exception handling.
-        append_asm_flags("-coff") # Generates common object file format (COFF) type of object module. 
+        append_asm_flags("-coff") # Generates common object file format (COFF) type of object module.
                                   # Generally required for Win32 assembly language development.
         append_asm_flags("-D _M_IA32")
     elseif(${INTEL64})

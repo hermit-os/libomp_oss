@@ -1,5 +1,5 @@
 # <copyright>
-#    Copyright (c) 2013-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
 # </copyright>
 
 # This file holds the common flags independent of compiler
-# The flag types are: 
+# The flag types are:
 #   1) Assembly flags          (append_asm_flags_common)
 #   2) C/C++ Compiler flags    (append_c_and_cxx_flags_common)
 #   3) Fortran Compiler flags  (append_fort_flags_common)
@@ -105,7 +105,7 @@ function(append_linker_flags_common input_ld_flags input_ld_flags_libs)
 
         #################################
         # Windows linker flags
-        if(${WINDOWS}) 
+        if(${WINDOWS})
 
         ##################
         # MAC linker flags
@@ -126,19 +126,28 @@ function(append_linker_flags_common input_ld_flags input_ld_flags_libs)
             if(${LIBOMP_STATS})
                 append_linker_flags_library("-Wl,-lstdc++") # link in standard c++ library (stats-gathering needs it)
             endif()
+            if(${LIBOMP_USE_HWLOC})
+                append_linker_flags_library("${LIBOMP_HWLOC_LIBRARY}")
+            endif()
         #########################
         # Unix based linker flags
         else()
+            IF(${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
+                append_linker_flags_library("-lm")
+            ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
             # For now, always include --version-script flag on Unix systems.
             append_linker_flags("-Wl,--version-script=${src_dir}/exports_so.txt") # Use exports_so.txt as version script to create versioned symbols for ELF libraries
             append_linker_flags("-Wl,-z,noexecstack") #  Marks the object as not requiring executable stack.
             append_linker_flags("-Wl,--as-needed")    #  Only adds library dependencies as they are needed. (if libomp actually uses a function from the library, then add it)
             if(NOT ${STUBS_LIBRARY})
                 append_linker_flags("-Wl,--warn-shared-textrel") #  Warn if the linker adds a DT_TEXTREL to a shared object.
-                append_linker_flags("-Wl,-fini=__kmp_internal_end_fini") # When creating an ELF executable or shared object, call NAME when the 
-                                                                         # executable or shared object is unloaded, by setting DT_FINI to the 
+                append_linker_flags("-Wl,-fini=__kmp_internal_end_fini") # When creating an ELF executable or shared object, call NAME when the
+                                                                         # executable or shared object is unloaded, by setting DT_FINI to the
                                                                          # address of the function.  By default, the linker uses "_fini" as the function to call.
                 append_linker_flags_library("-pthread") # link pthread library
+                if(${LIBOMP_USE_HWLOC})
+                    append_linker_flags_library("${LIBOMP_HWLOC_LIBRARY}")
+                endif()
             endif()
         endif() # if(${OPERATING_SYSTEM}) ...
 

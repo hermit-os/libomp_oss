@@ -3,7 +3,7 @@
  */
 
 /* <copyright>
-    Copyright (c) 1997-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 1997-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -37,7 +37,7 @@
 #include "kmp_version.h"
 
 // Replace with snapshot date YYYYMMDD for promotion build.
-#define KMP_VERSION_BUILD    20150701
+#define KMP_VERSION_BUILD    20160217
 
 // Helper macros to convert value of macro to string literal.
 #define _stringer( x ) #x
@@ -222,9 +222,6 @@ __kmp_print_version_2( void ) {
         return;
     }; // if
     __kmp_version_2_printed = TRUE;
-
-    #ifndef KMP_STUB
-    #endif // KMP_STUB
 } // __kmp_print_version_2
 
 // end of file //

@@ -1,7 +1,7 @@
 # common-tools.mk #
 
 # <copyright>
-#    Copyright (c) 2008-2015 Intel Corporation.  All Rights Reserved.
+#    Copyright (c) 2008-2016 Intel Corporation.  All Rights Reserved.
 #
 #    Redistribution and use in source and binary forms, with or without
 #    modification, are permitted provided that the following conditions
@@ -330,7 +330,7 @@ ifeq "$(os)" "mac"
     endif
     # These options suitable for any linker, either C compiler or libtool.
     ld-flags-dll += -headerpad_max_install_names
-    ld-flags-dll += -install_name $(@F)
+    ld-flags-dll += -install_name "@rpath/$(@F)"
 endif
 
 # --- Windows* OS definitions ---

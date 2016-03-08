@@ -1,5 +1,5 @@
 /* <copyright>
-    Copyright (c) 2005-2015 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 2005-2016 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -132,10 +132,11 @@
  */
 #ifdef __STRICT_ANSI__
 #define ITT_INLINE           static
+#define ITT_INLINE_ATTRIBUTE __attribute__((unused))
 #else  /* __STRICT_ANSI__ */
 #define ITT_INLINE           static inline
+#define ITT_INLINE_ATTRIBUTE __attribute__((always_inline, unused))
 #endif /* __STRICT_ANSI__ */
-#define ITT_INLINE_ATTRIBUTE __attribute__ ((always_inline, unused))
 #endif /* ITT_PLATFORM==ITT_PLATFORM_WIN */
 /** @endcond */
 
