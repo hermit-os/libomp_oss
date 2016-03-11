@@ -41,6 +41,15 @@
 #include <limits>
 #include "kmp_os.h"
 
+#if KMP_OS_HERMIT
+inline static unsigned long long __rdtsc(void)
+{
+	unsigned long lo, hi;
+	asm volatile ("rdtsc" : "=a"(lo), "=d"(hi) :: "memory");
+	return ((unsigned long long) hi << 32ULL | (unsigned long long) lo);
+}
+#endif
+
 class tsc_tick_count {
   private:
     int64_t my_count;

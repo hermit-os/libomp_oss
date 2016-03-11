@@ -58,6 +58,7 @@
 
 kmp_msg_t           __kmp_msg_empty = { kmp_mt_dummy, 0, "", 0  };
 kmp_msg_t           __kmp_msg_null  = { kmp_mt_dummy, 0, NULL, 0 };
+
 static char const * no_message_available = "(No message available)";
 
 enum kmp_i18n_cat_status {
@@ -104,10 +105,14 @@ __kmp_i18n_catopen(
 #if KMP_OS_UNIX
 #define KMP_I18N_OK
 
+#if !KMP_OS_HERMIT
 #include <nl_types.h>
+#endif
 
 #define KMP_I18N_NULLCAT ((nl_catd)( -1 ))
+#if !KMP_OS_HERMIT
 static nl_catd       cat  = KMP_I18N_NULLCAT;    // !!! Shall it be volatile?
+#endif
 static char const *  name = ( KMP_VERSION_MAJOR == 4 ? "libguide.cat" : "libiomp5.cat" );
 
 /*
@@ -121,11 +126,18 @@ void
 __kmp_i18n_do_catopen(
 ) {
     int    english = 0;
+#if !KMP_OS_HERMIT
+    char * lang = NULL;
+#else
     char * lang    = __kmp_env_get( "LANG" );
     // TODO: What about LC_ALL or LC_MESSAGES?
+#endif
 
+puts("HHH\n");
     KMP_DEBUG_ASSERT( status == KMP_I18N_CLOSED );
+#if !KMP_OS_HERMIT
     KMP_DEBUG_ASSERT( cat    == KMP_I18N_NULLCAT );
+#endif
 
     english =
 	lang == NULL                       ||  // In all these cases English language is used.
@@ -152,9 +164,11 @@ __kmp_i18n_do_catopen(
     // exact copy of messages in English catalog.
     if ( english ) {
 	status = KMP_I18N_ABSENT;  // mark catalog as absent so it will not be re-opened.
+puts("AAA\n");
 	return;
     }
 
+#if !KMP_OS_HERMIT
     cat = catopen( name, 0 );
     // TODO: Why do we pass 0 in flags?
     status = ( cat == KMP_I18N_NULLCAT ? KMP_I18N_ABSENT : KMP_I18N_OPENED );
@@ -180,7 +194,6 @@ __kmp_i18n_do_catopen(
         KMP_INTERNAL_FREE( lang );
       }
     } else { // status == KMP_I18N_OPENED
-
         int section = get_section( kmp_i18n_prp_Version );
         int number  = get_number( kmp_i18n_prp_Version );
         char const * expected = __kmp_i18n_default_table.sect[ section ].str[ number ];
@@ -208,9 +221,8 @@ __kmp_i18n_do_catopen(
             } // __kmp_generate_warnings
         }; // if
         __kmp_str_buf_free( & version );
-
     }; // if
-
+#endif
 } // func __kmp_i18n_do_catopen
 
 
@@ -219,8 +231,10 @@ __kmp_i18n_catclose(
 ) {
     if ( status == KMP_I18N_OPENED ) {
         KMP_DEBUG_ASSERT( cat != KMP_I18N_NULLCAT );
+#if !KMP_OS_HERMIT
         catclose( cat );
         cat = KMP_I18N_NULLCAT;
+#endif
     }; // if
     status = KMP_I18N_CLOSED;
 } // func __kmp_i18n_catclose
@@ -230,13 +244,14 @@ char const *
 __kmp_i18n_catgets(
     kmp_i18n_id_t  id
 ) {
-
     int section = get_section( id );
     int number  = get_number( id );
     char const * message = NULL;
 
+puts("CCC\n");
     if ( 1 <= section && section <= __kmp_i18n_default_table.size ) {
         if ( 1 <= number && number <= __kmp_i18n_default_table.sect[ section ].size ) {
+#if !KMP_OS_HERMIT
             if ( status == KMP_I18N_CLOSED ) {
                 __kmp_i18n_catopen();
             }; // if
@@ -248,8 +263,10 @@ __kmp_i18n_catgets(
                         __kmp_i18n_default_table.sect[ section ].str[ number ]
                     );
             }; // if
+#endif
             if ( message == NULL ) {
                 message = __kmp_i18n_default_table.sect[ section ].str[ number ];
+		printf("message: sec %d no %d str %s\n", section, number, message);
             }; // if
         }; // if
     }; // if
@@ -257,9 +274,7 @@ __kmp_i18n_catgets(
         message = no_message_available;
     }; // if
     return message;
-
 } // func __kmp_i18n_catgets
-
 
 #endif // KMP_OS_UNIX
 

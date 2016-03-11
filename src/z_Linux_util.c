@@ -49,7 +49,9 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/resource.h>
+#if !KMP_OS_HERMIT
 #include <sys/syscall.h>
+#endif
 
 #if KMP_OS_LINUX && !KMP_OS_CNK
 # include <sys/sysinfo.h>
@@ -882,6 +884,9 @@ __kmp_launch_monitor( void *thr )
 
         KA_TRACE( 15, ( "__kmp_launch_monitor: update\n" ) );
 
+#if KMP_OS_HERMIT
+
+#else
         status = gettimeofday( &tval, NULL );
         KMP_CHECK_SYSFAIL_ERRNO( "gettimeofday", status );
         TIMEVAL_TO_TIMESPEC( &tval, &now );
@@ -893,6 +898,7 @@ __kmp_launch_monitor( void *thr )
             now.tv_sec  += 1;
             now.tv_nsec -= KMP_NSEC_PER_SEC;
         }
+#endif
 
         status = pthread_mutex_lock( & __kmp_wait_mx.m_mutex );
         KMP_CHECK_SYSFAIL( "pthread_mutex_lock", status );
@@ -1057,7 +1063,7 @@ __kmp_create_worker( int gtid, kmp_info_t *th, size_t stack_size )
 #endif /* KMP_THREAD_ATTR */
 
     status = pthread_create( & handle, & thread_attr, __kmp_launch_worker, (void *) th );
-    if ( status != 0 || ! handle ) { // ??? Why do we check handle??
+    if ( status != 0 /*|| ! handle*/ ) { // ??? Why do we check handle??
 #ifdef _POSIX_THREAD_ATTR_STACKSIZE
         if ( status == EINVAL ) {
             __kmp_msg(kmp_ms_fatal, KMP_MSG(CantSetWorkerStackSize, stack_size), KMP_ERR( status ),
@@ -1394,8 +1400,10 @@ __kmp_team_handler( int signo )
 
 static
 void __kmp_sigaction( int signum, const struct sigaction * act, struct sigaction * oldact ) {
+#if !KMP_OS_HERMIT
     int rc = sigaction( signum, act, oldact );
     KMP_CHECK_SYSFAIL_ERRNO( "sigaction", rc );
+#endif
 }
 
 
@@ -1594,8 +1602,10 @@ __kmp_atfork_child (void)
 void
 __kmp_register_atfork(void) {
     if ( __kmp_need_register_atfork ) {
+#if !KMP_OS_HERMIT
         int status = pthread_atfork( __kmp_atfork_prepare, __kmp_atfork_parent, __kmp_atfork_child );
         KMP_CHECK_SYSFAIL( "pthread_atfork", status );
+#endif
         __kmp_need_register_atfork = FALSE;
     }
 }
@@ -1947,10 +1957,13 @@ int
 __kmp_read_system_info( struct kmp_sys_info *info )
 {
     int status;
+#if !KMP_OS_HERMIT
     struct rusage r_usage;
+#endif
 
     memset( info, 0, sizeof( *info ) );
 
+#if !KMP_OS_HERMIT
     status = getrusage( RUSAGE_SELF, &r_usage);
     KMP_CHECK_SYSFAIL_ERRNO( "getrusage", status );
 
@@ -1962,6 +1975,7 @@ __kmp_read_system_info( struct kmp_sys_info *info )
     info->oublock = r_usage.ru_oublock; /* the number of times the file system had to perform output */
     info->nvcsw   = r_usage.ru_nvcsw;   /* the number of times a context switch was voluntarily      */
     info->nivcsw  = r_usage.ru_nivcsw;  /* the number of times a context switch was forced           */
+#endif
 
     return (status != 0);
 }
@@ -1969,9 +1983,29 @@ __kmp_read_system_info( struct kmp_sys_info *info )
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
+#if KMP_OS_HERMIT
+extern "C" unsigned int get_cpufreq(void);
+static unsigned long long start_tsc;
+
+inline static unsigned long long rdtsc(void)
+{
+	unsigned long lo, hi;
+	asm volatile ("rdtsc" : "=a"(lo), "=d"(hi) :: "memory");
+	return ((unsigned long long) hi << 32ULL | (unsigned long long) lo);
+}
+
+__attribute__((constructor)) static void timer_init()
+{
+	start_tsc = rdtsc();
+}
+#endif
+
 void
 __kmp_read_system_time( double *delta )
 {
+#if KMP_OS_HERMIT
+    *delta = (double) (rdtsc() - start_tsc) / ((double) get_cpufreq() * 1000000.0);
+#else
     double              t_ns;
     struct timeval      tval;
     struct timespec     stop;
@@ -1982,16 +2016,21 @@ __kmp_read_system_time( double *delta )
     TIMEVAL_TO_TIMESPEC( &tval, &stop );
     t_ns = TS2NS(stop) - TS2NS(__kmp_sys_timer_data.start);
     *delta = (t_ns * 1e-9);
+#endif
 }
 
 void
 __kmp_clear_system_time( void )
 {
+#if KMP_OS_HERMIT
+    start_tsc = rdtsc();
+#else
     struct timeval tval;
     int status;
     status = gettimeofday( &tval, NULL );
     KMP_CHECK_SYSFAIL_ERRNO( "gettimeofday", status );
     TIMEVAL_TO_TIMESPEC( &tval, &__kmp_sys_timer_data.start );
+#endif
 }
 
 /* ------------------------------------------------------------------------ */
@@ -2025,6 +2064,10 @@ __kmp_tv_threadprivate_store( kmp_info_t *th, void *global_addr, void *thread_ad
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
+#if KMP_OS_HERMIT
+extern "C" unsigned int get_num_cpus(void);
+#endif
+
 static int
 __kmp_get_xproc( void ) {
 
@@ -2033,6 +2076,10 @@ __kmp_get_xproc( void ) {
     #if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD
 
         r = sysconf( _SC_NPROCESSORS_ONLN );
+
+    #elif KMP_OS_HERMIT
+
+        r = get_num_cpus();
 
     #elif KMP_OS_DARWIN
 
@@ -2097,6 +2144,11 @@ __kmp_runtime_initialize( void )
 
     __kmp_xproc = __kmp_get_xproc();
 
+#if KMP_OS_HERMIT
+    /* Unlimited threads for NPTL */
+    __kmp_sys_max_nth = INT_MAX;
+    __kmp_sys_min_stksize = KMP_MIN_STKSIZE;
+#else
     if ( sysconf( _SC_THREADS ) ) {
 
         /* Query the maximum number of threads */
@@ -2116,6 +2168,7 @@ __kmp_runtime_initialize( void )
             __kmp_sys_min_stksize = KMP_MIN_STKSIZE;
         }
     }
+#endif
 
     /* Set up minimum number of threads to switch to TLS gtid */
     __kmp_tls_gtid_min = KMP_TLS_GTID_MIN;
@@ -2179,13 +2232,20 @@ __kmp_runtime_destroy( void )
     __kmp_init_runtime = FALSE;
 }
 
+#if KMP_OS_HERMIT
+extern "C" void sys_msleep(unsigned int ms);
+#endif
 
 /* Put the thread to sleep for a time period */
 /* NOTE: not currently used anywhere */
 void
 __kmp_thread_sleep( int millis )
 {
+#if KMP_OS_HERMIT
+    sys_msleep( ( millis + 500 ) / 1000 );
+#else
     sleep(  ( millis + 500 ) / 1000 );
+#endif
 }
 
 /* Calculate the elapsed wall clock time for the user */
@@ -2290,7 +2350,7 @@ __kmp_is_address_mapped( void * addr ) {
             found = 1;
         }; // if
 
-    #elif KMP_OS_FREEBSD || KMP_OS_NETBSD
+    #elif KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_HERMIT
 
         // FIXME(FreeBSD, NetBSD): Implement this
         found = 1;

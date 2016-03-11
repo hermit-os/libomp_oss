@@ -226,8 +226,9 @@ __kmp_env_exists( char const * name ) {
 
 void
 __kmp_env_set( char const * name, char const * value, int overwrite ) {
-
-    #if KMP_OS_UNIX
+    #if KMP_OS_HERMIT
+        fprintf(stderr, "setenv: name %s, vlaue %s\n", name, value);
+    #elif KMP_OS_UNIX
         int rc = setenv( name, value, overwrite );
         if ( rc != 0 ) {
             // Dead code. I tried to put too many variables into Linux* OS
@@ -280,8 +281,9 @@ __kmp_env_set( char const * name, char const * value, int overwrite ) {
 
 void
 __kmp_env_unset( char const * name ) {
-
-    #if KMP_OS_UNIX
+    #if KMP_OS_HERMIT
+        fprintf(stderr, "unsetenv: name %s\n", name);
+    #elif KMP_OS_UNIX
         unsetenv( name );
     #elif KMP_OS_WINDOWS
         BOOL rc = SetEnvironmentVariable( name, NULL );

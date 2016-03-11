@@ -44,7 +44,7 @@
 #define KMP_OS_WINDOWS  0
 #define KMP_OS_CNK      0
 #define KMP_OS_UNIX     0  /* disjunction of KMP_OS_LINUX, KMP_OS_DARWIN etc. */
-
+#define KMP_OS_HERMIT	0
 
 #ifdef _WIN32
 # undef KMP_OS_WINDOWS
@@ -81,11 +81,16 @@
 # define KMP_OS_CNK 1
 #endif
 
-#if (1 != KMP_OS_LINUX + KMP_OS_FREEBSD + KMP_OS_NETBSD + KMP_OS_DARWIN + KMP_OS_WINDOWS)
+#if ( defined __hermit__ )
+# undef KMP_OS_HERMIT
+# define KMP_OS_HERMIT 1
+#endif
+
+#if (1 != KMP_OS_LINUX + KMP_OS_FREEBSD + KMP_OS_NETBSD + KMP_OS_DARWIN + KMP_OS_WINDOWS + KMP_OS_HERMIT)
 # error Unknown OS
 #endif
 
-#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_DARWIN
+#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_DARWIN || KMP_OS_HERMIT
 # undef KMP_OS_UNIX
 # define KMP_OS_UNIX 1
 #endif

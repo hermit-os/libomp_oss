@@ -40,6 +40,8 @@
 #include "kmp.h"                // KMP_DEFAULT_STKSIZE
 #include "kmp_stub.h"
 
+#if !KMP_OS_HERMIT
+
 #if KMP_OS_WINDOWS
     #include <windows.h>
 #else
@@ -126,7 +128,7 @@ void kmp_set_disp_num_buffers( omp_int_t arg ) { i; }
 void * kmp_malloc( size_t size )                 { i; return malloc( size ); }
 void * kmp_aligned_malloc( size_t sz, size_t a ) {
     i;
-#if KMP_OS_WINDOWS
+#if KMP_OS_WINDOWS || KMP_OS_HERMIT
     errno = ENOSYS; // not supported
     return NULL;    // no standard aligned allocator on Windows (pre - C11)
 #else
@@ -280,6 +282,8 @@ double __kmps_get_wtick( void ) {
     #endif
     return wtick;
 }; // __kmps_get_wtick
+
+#endif
 
 // end of file //
 

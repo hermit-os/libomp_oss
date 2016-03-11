@@ -6081,7 +6081,6 @@ void
 __kmp_register_library_startup(
     void
 ) {
-
     char * name   = __kmp_reg_status_name();  // Name of the environment variable.
     int    done   = 0;
     union {
@@ -6103,6 +6102,7 @@ __kmp_register_library_startup(
 
     KA_TRACE( 50, ( "__kmp_register_library_startup: %s=\"%s\"\n", name, __kmp_registration_str ) );
 
+#if !KMP_OS_HERMIT
     while ( ! done ) {
 
         char * value  = NULL; // Actual value of the environment variable.
@@ -6181,14 +6181,14 @@ __kmp_register_library_startup(
 
     }; // while
     KMP_INTERNAL_FREE( (void *) name );
-
+#endif
 } // func __kmp_register_library_startup
 
 
 void
 __kmp_unregister_library( void ) {
-
     char * name  = __kmp_reg_status_name();
+#if !KMP_OS_HERMIT
     char * value = __kmp_env_get( name );
 
     KMP_DEBUG_ASSERT( __kmp_registration_flag != 0 );
@@ -6197,14 +6197,16 @@ __kmp_unregister_library( void ) {
         // Ok, this is our variable. Delete it.
         __kmp_env_unset( name );
     }; // if
+#endif
 
     KMP_INTERNAL_FREE( __kmp_registration_str );
+#if !KMP_OS_HERMIT
     KMP_INTERNAL_FREE( value );
+#endif
     KMP_INTERNAL_FREE( name );
 
     __kmp_registration_flag = 0;
     __kmp_registration_str  = NULL;
-
 } // __kmp_unregister_library
 
 
@@ -7496,7 +7498,7 @@ __kmp_determine_reduction_method( ident_t *loc, kmp_int32 global_tid,
 
         #if KMP_ARCH_X86_64 || KMP_ARCH_PPC64 || KMP_ARCH_AARCH64
 
-            #if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_WINDOWS || KMP_OS_DARWIN
+            #if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_WINDOWS || KMP_OS_DARWIN || KMP_OS_HERMIT
 
 	    int teamsize_cutoff = 4;
 

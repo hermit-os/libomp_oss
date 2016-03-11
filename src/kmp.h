@@ -69,7 +69,9 @@
 #define TASK_PROXY               1
 #define TASK_FULL                0
 
+#ifndef __hermit__
 #define KMP_CANCEL_THREADS
+#endif
 #define KMP_THREAD_ATTR
 
 #include <stdio.h>
@@ -524,7 +526,9 @@ typedef int PACKED_REDUCTION_METHOD_T;
 
 #if KMP_OS_UNIX
 # include <pthread.h>
+#if !KMP_OS_HERMIT
 # include <dlfcn.h>
+#endif
 #endif
 
 /* ------------------------------------------------------------------------ */
@@ -1146,6 +1150,10 @@ extern int __kmp_place_num_threads_per_core;
 /* TODO: tune for KMP_OS_NETBSD */
 #  define KMP_INIT_WAIT  1024U          /* initial number of spin-tests   */
 #  define KMP_NEXT_WAIT   512U          /* susequent number of spin-tests */
+#elif KMP_OS_HERMIT
+/* TODO: tune for KMP_OS_HERMIT */
+#  define KMP_INIT_WAIT  1024U          /* initial number of spin-tests   */
+#  define KMP_NEXT_WAIT   512U          /* susequent number of spin-tests */
 #endif
 
 #if KMP_ARCH_X86 || KMP_ARCH_X86_64
@@ -1159,9 +1167,9 @@ extern void __kmp_x86_cpuid( int mode, int mode2, struct kmp_cpuid *p );
 # if KMP_ARCH_X86
   extern void __kmp_x86_pause( void );
 # elif KMP_MIC
-  static void __kmp_x86_pause( void ) { _mm_delay_32( 100 ); }
+  static inline void __kmp_x86_pause( void ) { _mm_delay_32( 100 ); }
 # else
-  static void __kmp_x86_pause( void ) { _mm_pause(); }
+  static inline void __kmp_x86_pause( void ) { _mm_pause(); }
 # endif
 # define KMP_CPU_PAUSE() __kmp_x86_pause()
 #elif KMP_ARCH_PPC64

@@ -1,68 +1,56 @@
-# <copyright>
-#    Copyright (c) 2013-2016 Intel Corporation.  All Rights Reserved.
+NEWLIB = ../x86/x86_64-hermit
+MAKE = make
+ARFLAGS_FOR_TARGET = rsv
+CFLAGS_ADD =  -Isrc -Isrc/thirdparty/safeclib -Isrc/thirdparty/ittnotify -D INTEL_NO_ITTNOTIFY_API -D USE_ITT_NOTIFY=0 -D USE_ITT_BUILD -D NDEBUG -D KMP_ARCH_STR="\"Intel(R) 64\"" -pthread -D KMP_USE_HWLOC=0 -D KMP_USE_ASSERT -D BUILD_I8 -D BUILD_TV -D KMP_LIBRARY_FILE=\"libiomp5.so\" -D KMP_VERSION_MAJOR=5 -D CACHE_LINE=64 -D KMP_ADJUST_BLOCKTIME=1 -D BUILD_PARALLEL_ORDERED -D KMP_ASM_INTRINS -D KMP_USE_INTERNODE_ALIGNMENT=0 -D KMP_USE_VERSION_SYMBOLS -D USE_CBLKDATA -D KMP_GOMP_COMPAT -D KMP_NESTED_HOT_TEAMS -D KMP_USE_ADAPTIVE_LOCKS=1 -D KMP_DEBUG_ADAPTIVE_LOCKS=0 -D KMP_STATS_ENABLED=0 -D OMP_50_ENABLED=0 -D OMP_41_ENABLED=0 -D OMP_40_ENABLED=1 -D KMP_TDATA_GTID  -D _KMP_BUILD_TIME="\"$(date)\""
+GASFLAGS_ADD = -x assembler-with-cpp
+CP = cp
+C_source =  $(wildcard src/kmp_*.c src/thirdparty/safeclib/*.c src/z_Linux_util.c)
+CPP_source = $(wildcard src/kmp_*.cpp)
+S_source = $(wildcard src/*.s)
+NAME = libiomp.a
+OBJS = $(C_source:.c=.o) $(CPP_source:.cpp=.o) $(S_source:.s=.o)
+
 #
-#    Redistribution and use in source and binary forms, with or without
-#    modification, are permitted provided that the following conditions
-#    are met:
-#
-#      * Redistributions of source code must retain the above copyright
-#        notice, this list of conditions and the following disclaimer.
-#      * Redistributions in binary form must reproduce the above copyright
-#        notice, this list of conditions and the following disclaimer in the
-#        documentation and/or other materials provided with the distribution.
-#      * Neither the name of Intel Corporation nor the names of its
-#        contributors may be used to endorse or promote products derived
-#        from this software without specific prior written permission.
-#
-#    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-#    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-#    HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-#    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-#    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-#    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-#    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-#    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-#    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# </copyright>
-
-omp_root?=.
-include $(omp_root)/tools/common.inc
-.PHONY: default all omp
-
-default: omp
-
-all: omp stubs
-
-omp: info mkdir
-	@echo $(omp_root)/tools/build.pl $(build_args) --arch=$(arch) --mode=$(mode) lib inc common -- -j$(jobs)
-	$(omp_root)/tools/build.pl $(build_args) --arch=$(arch) --mode=$(mode) lib inc common -- -j$(jobs)
-
-stubs: mkdir
-	@echo $(omp_root)/tools/build.pl $(build_args) --arch=$(arch) --mode=$(mode) --stubs lib inc common -- -j$(jobs)
-	$(omp_root)/tools/build.pl $(build_args) --arch=$(arch) --mode=$(mode) --stubs lib inc common -- -j$(jobs)
-
-.PHONY: clean info
-
-clean:
-	$(shell $(RM) -rf $(omp_root)$(SLASH)tmp)
-	@echo clean done
-
-mkdir:
-	$(shell $(MD) $(omp_root)$(SLASH)tmp >$(NUL) 2>$(NUL))
-	@echo Created $(omp_root)$(SLASH)tmp directory
-
-info:
-	@echo omp_root=$(omp_root)
-	@echo omp_os=$(omp_os)
-	@echo arch=$(arch)
-ifeq "$(arch)" "mic"
-	@echo mic_arch=$(mic_arch)
+# Prettify output
+V = 0
+ifeq ($V,0)
+	Q = @
+	P = > /dev/null
 endif
-	@echo compiler=$(compiler)
-	@echo mic=$(mic)
-	@echo mode=$(mode)
-	@echo jobs=$(jobs)
 
+# other implicit rules
+%.o : %.c
+	@echo [CC] $@
+	$Q$(CC_FOR_TARGET) -c $(CFLAGS_FOR_TARGET) $(CFLAGS_ADD) -x c++ -std=c++11 -fno-exceptions -Wsign-compare -o $@ $<
+
+%.o : %.s
+	@echo [CC] $@
+	$Q$(CC_FOR_TARGET) -c $(CFLAGS_FOR_TARGET) $(CFLAGS_ADD) -x assembler-with-cpp -o $@ $<
+
+%.o : %.cpp
+	@echo [CPP] $@
+	$Q$(CXX_FOR_TARGET) -c $(CXXFLAGS_FOR_TARGET) $(CFLAGS_ADD) -o $@ $<
+
+default: all
+
+all: $(NAME)
+
+$(NAME): $(OBJS)
+	$Q$(AR_FOR_TARGET) $(ARFLAGS_FOR_TARGET) $@ $(OBJS)
+	$Q$(CP) $@ $(NEWLIB)/lib
+	$Q$(CP) libgomp.spec $(NEWLIB)/lib
+	$Q$(CP) src/omp.h $(NEWLIB)/include
+	
+clean:
+	@echo Cleaning examples
+	$Q$(RM) $(NAME) *.o *~ 
+
+veryclean:
+	@echo Propper cleaning examples
+	$Q$(RM) $(NAME) *.o *~
+
+depend:
+	$Q$(CC_FOR_TARGET) -MM $(CFLAGS_FOR_TARGET) $(CFLAGS_ADD) src/kmp_*.c src/thirdparty/safeclib/*.c > Makefile.dep
+
+-include Makefile.dep
+# DO NOT DELETE
