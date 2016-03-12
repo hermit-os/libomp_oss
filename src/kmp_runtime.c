@@ -6325,7 +6325,13 @@ __kmp_do_serial_initialize( void )
     __kmp_max_nth = __kmp_sys_max_nth;
 
     // Three vars below moved here from __kmp_env_initialize() "KMP_BLOCKTIME" part
+#if KMP_OS_HERMIT
+    // HermitCore is a single-address space, single-application operating systems
+    // => we could use an infinite blocktime
+    __kmp_dflt_blocktime = KMP_MAX_BLOCKTIME;
+#else
     __kmp_dflt_blocktime = KMP_DEFAULT_BLOCKTIME;
+#endif
     __kmp_monitor_wakeups = KMP_WAKEUPS_FROM_BLOCKTIME( __kmp_dflt_blocktime, __kmp_monitor_wakeups );
     __kmp_bt_intervals = KMP_INTERVALS_FROM_BLOCKTIME( __kmp_dflt_blocktime, __kmp_monitor_wakeups );
     // From "KMP_LIBRARY" part of __kmp_env_initialize()

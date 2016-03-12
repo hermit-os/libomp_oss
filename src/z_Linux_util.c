@@ -110,6 +110,39 @@ static kmp_mutex_align_t   __kmp_wait_mx;
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
+#if 0
+#define KMP_DEBUG
+#undef KA_TRACE
+#define KA_TRACE(d,x)	{ printf x ; }
+#undef KB_TRACE
+#define KB_TRACE(d,x)	{ printf x ; }
+#undef KC_TRACE
+#define KC_TRACE(d,x)	{ printf x ; }
+#undef KD_TRACE
+#define KD_TRACE(d,x)	{ printf x ; }
+#undef KE_TRACE
+#define KE_TRACE(d,x)	{ printf x ; }
+#undef KF_TRACE
+#define KF_TRACE(d,x)	{ printf x ; }
+#endif
+
+#if KMP_OS_HERMIT
+extern "C" unsigned int get_cpufreq(void);
+static unsigned long long start_tsc;
+
+inline static unsigned long long rdtsc(void)
+{
+	unsigned long lo, hi;
+	asm volatile ("rdtsc" : "=a"(lo), "=d"(hi) :: "memory");
+	return ((unsigned long long) hi << 32ULL | (unsigned long long) lo);
+}
+
+__attribute__((constructor)) static void timer_init()
+{
+	start_tsc = rdtsc();
+}
+#endif
+
 #ifdef DEBUG_SUSPEND
 static void
 __kmp_print_cond( char *buffer, kmp_cond_align_t *cond )
@@ -885,11 +918,16 @@ __kmp_launch_monitor( void *thr )
         KA_TRACE( 15, ( "__kmp_launch_monitor: update\n" ) );
 
 #if KMP_OS_HERMIT
+	unsigned int _freq = get_cpufreq();
+	uint64_t _diff =  rdtsc() - start_tsc;
 
+	now.tv_sec = _diff / (_freq * 1000000ULL);
+	now.tv_nsec = ((_diff - now.tv_sec * _freq * 1000000ULL) * 1000ULL) / _freq;
 #else
         status = gettimeofday( &tval, NULL );
         KMP_CHECK_SYSFAIL_ERRNO( "gettimeofday", status );
         TIMEVAL_TO_TIMESPEC( &tval, &now );
+#endif
 
         now.tv_sec  += interval.tv_sec;
         now.tv_nsec += interval.tv_nsec;
@@ -898,7 +936,6 @@ __kmp_launch_monitor( void *thr )
             now.tv_sec  += 1;
             now.tv_nsec -= KMP_NSEC_PER_SEC;
         }
-#endif
 
         status = pthread_mutex_lock( & __kmp_wait_mx.m_mutex );
         KMP_CHECK_SYSFAIL( "pthread_mutex_lock", status );
@@ -1400,10 +1437,8 @@ __kmp_team_handler( int signo )
 
 static
 void __kmp_sigaction( int signum, const struct sigaction * act, struct sigaction * oldact ) {
-#if !KMP_OS_HERMIT
     int rc = sigaction( signum, act, oldact );
     KMP_CHECK_SYSFAIL_ERRNO( "sigaction", rc );
-#endif
 }
 
 
@@ -1982,23 +2017,6 @@ __kmp_read_system_info( struct kmp_sys_info *info )
 
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
-
-#if KMP_OS_HERMIT
-extern "C" unsigned int get_cpufreq(void);
-static unsigned long long start_tsc;
-
-inline static unsigned long long rdtsc(void)
-{
-	unsigned long lo, hi;
-	asm volatile ("rdtsc" : "=a"(lo), "=d"(hi) :: "memory");
-	return ((unsigned long long) hi << 32ULL | (unsigned long long) lo);
-}
-
-__attribute__((constructor)) static void timer_init()
-{
-	start_tsc = rdtsc();
-}
-#endif
 
 void
 __kmp_read_system_time( double *delta )
