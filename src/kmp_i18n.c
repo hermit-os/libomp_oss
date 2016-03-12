@@ -230,8 +230,8 @@ void
 __kmp_i18n_catclose(
 ) {
     if ( status == KMP_I18N_OPENED ) {
-        KMP_DEBUG_ASSERT( cat != KMP_I18N_NULLCAT );
 #if !KMP_OS_HERMIT
+        KMP_DEBUG_ASSERT( cat != KMP_I18N_NULLCAT );
         catclose( cat );
         cat = KMP_I18N_NULLCAT;
 #endif
