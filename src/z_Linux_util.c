@@ -1942,21 +1942,13 @@ __kmp_yield( int cond )
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-#if KMP_OS_HERMIT
-static int __thread hermit_gtid;
-#endif
-
 void
 __kmp_gtid_set_specific( int gtid )
 {
     if( __kmp_init_gtid ) {
-#if KMP_OS_HERMIT
-        hermit_gtid = gtid;
-#else
         int status;
         status = pthread_setspecific( __kmp_gtid_threadprivate_key, (void*)(intptr_t)(gtid+1) );
         KMP_CHECK_SYSFAIL( "pthread_setspecific", status );
-#endif
     } else {
         KA_TRACE( 50, ("__kmp_gtid_set_specific: runtime shutdown, returning\n" ) );
     }
@@ -1970,9 +1962,6 @@ __kmp_gtid_get_specific()
         KA_TRACE( 50, ("__kmp_gtid_get_specific: runtime shutdown, returning KMP_GTID_SHUTDOWN\n" ) );
         return KMP_GTID_SHUTDOWN;
     }
-#if KMP_OS_HERMIT
-    gtid = hermit_gtid;
-#else
     gtid = (int)(size_t)pthread_getspecific( __kmp_gtid_threadprivate_key );
     if ( gtid == 0 ) {
         gtid = KMP_GTID_DNE;
@@ -1980,7 +1969,6 @@ __kmp_gtid_get_specific()
     else {
         gtid--;
     }
-#endif
     KA_TRACE( 50, ("__kmp_gtid_get_specific: key:%d gtid:%d\n",
                __kmp_gtid_threadprivate_key, gtid ));
     return gtid;

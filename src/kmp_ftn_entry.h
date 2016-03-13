@@ -438,7 +438,7 @@ xexpand(FTN_GET_THREAD_NUM)( void )
     #else
         int gtid;
 
-        #if KMP_OS_DARWIN || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_HERMIT
+        #if KMP_OS_DARWIN || KMP_OS_FREEBSD || KMP_OS_NETBSD
             gtid = __kmp_entry_gtid();
         #elif KMP_OS_WINDOWS
             if (!__kmp_init_parallel ||
@@ -448,7 +448,7 @@ xexpand(FTN_GET_THREAD_NUM)( void )
                 return 0;
             }
             --gtid; // We keep (gtid+1) in TLS
-        #elif KMP_OS_LINUX
+        #elif KMP_OS_LINUX || KMP_OS_HERMIT
             #ifdef KMP_TDATA_GTID
             if ( __kmp_gtid_mode >= 3 ) {
                 if ((gtid = __kmp_gtid) == KMP_GTID_DNE) {
