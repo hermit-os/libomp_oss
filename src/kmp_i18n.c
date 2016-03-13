@@ -248,7 +248,6 @@ __kmp_i18n_catgets(
     int number  = get_number( id );
     char const * message = NULL;
 
-puts("CCC\n");
     if ( 1 <= section && section <= __kmp_i18n_default_table.size ) {
         if ( 1 <= number && number <= __kmp_i18n_default_table.sect[ section ].size ) {
 #if !KMP_OS_HERMIT
