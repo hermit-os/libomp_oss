@@ -3731,7 +3731,9 @@ __kmp_register_root( int initial_thread )
     /* prepare the master thread for get_gtid() */
     __kmp_gtid_set_specific( gtid );
 
+#if USE_ITT_BUILD
     __kmp_itt_thread_name( gtid );
+#endif
 
     #ifdef KMP_TDATA_GTID
         __kmp_gtid = gtid;
