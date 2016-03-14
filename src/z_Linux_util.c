@@ -2026,7 +2026,7 @@ void
 __kmp_read_system_time( double *delta )
 {
 #if KMP_OS_HERMIT   
-    *delta = (double) (rdtsc() - __kmp_sys_timer_data.start) / ((double) get_cpufreq() * 1000000.0);
+    *delta = ((double) (rdtsc() - __kmp_sys_timer_data.start)) / ((double) get_cpufreq() * 1e6);
 #else
     double              t_ns;
     struct timeval      tval;
@@ -2283,7 +2283,7 @@ __kmp_elapsed( double *t )
     *t = (double) ts.tv_nsec * (1.0 / (double) KMP_NSEC_PER_SEC) +
         (double) ts.tv_sec;
 #elif KMP_OS_HERMIT
-    *t = (double) (rdtsc() - start_tsc) / ((double) get_cpufreq() * 1000000.0);
+    *t = ((double) (rdtsc() - start_tsc)) / ((double) get_cpufreq() * 1e6);
 # else
     struct timeval tv;
 
@@ -2299,7 +2299,7 @@ void
 __kmp_elapsed_tick( double *t )
 {
 #if KMP_OS_HERMIT
-    *t = 1 / ((double) get_cpufreq() * 1000000.0);
+    *t = 1 / ((double) get_cpufreq() * 1e6);
 #else
     *t = 1 / (double) CLOCKS_PER_SEC;
 #endif
