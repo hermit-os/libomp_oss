@@ -742,7 +742,7 @@ __kmp_launch_worker( void *thr )
     sigset_t    new_set, old_set;
 #endif /* KMP_BLOCK_SIGNALS */
     void *exit_val;
-#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD
+#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_HERMIT
     void * volatile padding = 0;
 #endif
     int gtid;
@@ -790,7 +790,7 @@ __kmp_launch_worker( void *thr )
     KMP_CHECK_SYSFAIL( "pthread_sigmask", status );
 #endif /* KMP_BLOCK_SIGNALS */
 
-#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD
+#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_HERMIT
     if ( __kmp_stkoffset > 0 && gtid > 0 ) {
         padding = KMP_ALLOCA( gtid * __kmp_stkoffset );
     }
@@ -1935,11 +1935,19 @@ __kmp_resume_monitor()
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
+#if KMP_OS_HERMIT
+extern "C" void sys_yield(void);
+#endif
+
 void
 __kmp_yield( int cond )
 {
     if (cond && __kmp_yielding_on) {
+#if KMP_OS_HERMIT
+        sys_yield();
+#else
         sched_yield();
+#endif
     }
 }
 
