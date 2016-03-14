@@ -78,12 +78,12 @@ static char const *
 __kmp_i18n_default_formats[] =
     {
         NULL,
-        "OMP: Info #%1$d: %2$s\n",
-        "OMP: Warning #%1$d: %2$s\n",
-        "OMP: Error #%1$d: %2$s\n",
-        "OMP: System error #%1$d: %2$s\n",
-        "OMP: Hint: %2$s\n",
-        "%1$s pragma (at %2$s:%3$s():%4$s)",
+        "OMP: Info #%1d: %2s\n",
+        "OMP: Warning #%1d: %2s\n",
+        "OMP: Error #%1d: %2s\n",
+        "OMP: System error #%1d: %2s\n",
+        "OMP: Hint: %2s\n",
+        "%1s pragma (at %2s:%3s():%4s)",
         NULL
     };
 
@@ -268,7 +268,7 @@ __kmp_i18n_default_messages[] =
         "%1$s: HT enabled; %2$d packages; %3$d TPU; %4$d TPUs per package",
         "%1$s: HT disabled; %2$d packages",
         "Threads encountered barriers in different order. ",
-        "Function %1$s failed:",
+        "Function %1s failed:",
         "%1$s: %2$s packages x %3$d cores/pkg x %4$d threads/core (%5$d total cores)",
         "Incompatible message catalog \"%1$s\": Version \"%2$s\" found, version \"%3$s\" expected.",
         "%1$s: ignored because %2$s has been defined",

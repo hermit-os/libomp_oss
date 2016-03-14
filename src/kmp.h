@@ -1152,8 +1152,8 @@ extern int __kmp_place_num_threads_per_core;
 #  define KMP_NEXT_WAIT   512U          /* susequent number of spin-tests */
 #elif KMP_OS_HERMIT
 /* TODO: tune for KMP_OS_HERMIT */
-#  define KMP_INIT_WAIT    64U          /* initial number of spin-tests   */
-#  define KMP_NEXT_WAIT    32U          /* susequent number of spin-tests */
+#  define KMP_INIT_WAIT   1024U          /* initial number of spin-tests   */
+#  define KMP_NEXT_WAIT    512U          /* susequent number of spin-tests */
 #endif
 
 #if KMP_ARCH_X86 || KMP_ARCH_X86_64

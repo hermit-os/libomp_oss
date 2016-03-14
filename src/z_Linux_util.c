@@ -1991,7 +1991,7 @@ __kmp_read_cpu_time( void )
 int
 __kmp_read_system_info( struct kmp_sys_info *info )
 {
-    int status;
+    int status = 0;
 #if !KMP_OS_HERMIT
     struct rusage r_usage;
 #endif
@@ -2021,7 +2021,7 @@ __kmp_read_system_info( struct kmp_sys_info *info )
 void
 __kmp_read_system_time( double *delta )
 {
-#if KMP_OS_HERMIT
+#if KMP_OS_HERMIT   
     *delta = (double) (rdtsc() - start_tsc) / ((double) get_cpufreq() * 1000000.0);
 #else
     double              t_ns;
@@ -2278,6 +2278,8 @@ __kmp_elapsed( double *t )
     KMP_CHECK_SYSFAIL_ERRNO( "clock_gettime", status );
     *t = (double) ts.tv_nsec * (1.0 / (double) KMP_NSEC_PER_SEC) +
         (double) ts.tv_sec;
+#elif KMP_OS_HERMIT
+    *t = (double) (rdtsc() - start_tsc) / ((double) get_cpufreq() * 1000000.0);
 # else
     struct timeval tv;
 
