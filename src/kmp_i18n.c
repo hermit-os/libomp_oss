@@ -265,7 +265,7 @@ __kmp_i18n_catgets(
 #endif
             if ( message == NULL ) {
                 message = __kmp_i18n_default_table.sect[ section ].str[ number ];
-		printf("message: sec %d no %d str %s\n", section, number, message);
+		//printf("message: sec %d no %d str %s\n", section, number, message);
             }; // if
         }; // if
     }; // if
