@@ -257,7 +257,11 @@ typedef double  kmp_real64;
     #define __forceinline __inline
 #endif
 
+#if KMP_OS_HERMIT
+#define PAGE_SIZE                       (0x1000)
+#else
 #define PAGE_SIZE                       (0x4000)
+#endif
 #define PAGE_ALIGNED(_addr)     ( ! ((size_t) _addr & \
                                      (size_t)(PAGE_SIZE - 1)))
 #define ALIGN_TO_PAGE(x)   (void *)(((size_t)(x)) & ~((size_t)(PAGE_SIZE - 1)))
