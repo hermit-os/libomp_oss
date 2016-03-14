@@ -83,7 +83,11 @@
 /* ------------------------------------------------------------------------ */
 
 struct kmp_sys_timer {
+#if KMP_OS_HERMIT
+    unsigned long long  start;
+#else
     struct timespec     start;
+#endif
 };
 
 // Convert timespec to nanoseconds.
@@ -139,7 +143,7 @@ inline static unsigned long long rdtsc(void)
 
 __attribute__((constructor)) static void timer_init()
 {
-	start_tsc = rdtsc();
+	start_tsc = __kmp_sys_timer_data.start = rdtsc();
 }
 #endif
 
@@ -2022,7 +2026,7 @@ void
 __kmp_read_system_time( double *delta )
 {
 #if KMP_OS_HERMIT   
-    *delta = (double) (rdtsc() - start_tsc) / ((double) get_cpufreq() * 1000000.0);
+    *delta = (double) (rdtsc() - __kmp_sys_timer_data.start) / ((double) get_cpufreq() * 1000000.0);
 #else
     double              t_ns;
     struct timeval      tval;
@@ -2041,7 +2045,7 @@ void
 __kmp_clear_system_time( void )
 {
 #if KMP_OS_HERMIT
-    start_tsc = rdtsc();
+    __kmp_sys_timer_data.start = rdtsc();
 #else
     struct timeval tval;
     int status;
@@ -2294,7 +2298,11 @@ __kmp_elapsed( double *t )
 void
 __kmp_elapsed_tick( double *t )
 {
+#if KMP_OS_HERMIT
+    *t = 1 / ((double) get_cpufreq() * 1000000.0);
+#else
     *t = 1 / (double) CLOCKS_PER_SEC;
+#endif
 }
 
 /*
