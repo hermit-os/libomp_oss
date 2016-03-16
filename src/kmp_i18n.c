@@ -126,14 +126,13 @@ void
 __kmp_i18n_do_catopen(
 ) {
     int    english = 0;
-#if !KMP_OS_HERMIT
+#if KMP_OS_HERMIT
     char * lang = NULL;
 #else
     char * lang    = __kmp_env_get( "LANG" );
     // TODO: What about LC_ALL or LC_MESSAGES?
 #endif
 
-puts("HHH\n");
     KMP_DEBUG_ASSERT( status == KMP_I18N_CLOSED );
 #if !KMP_OS_HERMIT
     KMP_DEBUG_ASSERT( cat    == KMP_I18N_NULLCAT );
@@ -164,7 +163,6 @@ puts("HHH\n");
     // exact copy of messages in English catalog.
     if ( english ) {
 	status = KMP_I18N_ABSENT;  // mark catalog as absent so it will not be re-opened.
-puts("AAA\n");
 	return;
     }
 
