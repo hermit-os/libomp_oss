@@ -38,14 +38,6 @@
 #include <float.h>
 #include "kmp_i18n.h"
 
-#if KMP_OS_HERMIT
-int gethostname(char *name, size_t len)
-{
-	strncpy(name, "hermit", len);
-	return 0;
-}
-#endif
-
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
