@@ -784,6 +784,10 @@ __kmp_msg_format(
 
 // -------------------------------------------------------------------------------------------------
 
+#ifdef __hermit__
+extern "C" int strerror_r( int, char *, size_t );
+#endif
+
 static
 char *
 sys_error(

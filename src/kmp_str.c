@@ -37,6 +37,7 @@
 #include <stdarg.h>    // va_*
 #include <stdio.h>     // vsnprintf()
 #include <stdlib.h>    // malloc(), realloc()
+#include <string.h>
 
 #include "kmp.h"
 #include "kmp_i18n.h"
@@ -650,6 +651,10 @@ __kmp_str_split(
         * tail = t;
     }; // if
 } // __kmp_str_split
+
+#ifdef __hermit__
+extern "C" char *strtok_r(char *str, const char *delim, char **saveptr);
+#endif
 
 /*
     strtok_r() is not available on Windows* OS. This function reimplements strtok_r().
