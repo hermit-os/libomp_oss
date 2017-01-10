@@ -1,4 +1,4 @@
-NEWLIB = ../x86/x86_64-hermit
+CROSSPREFIX = x86_64-hermit
 MAKE = make
 ARFLAGS_FOR_TARGET = rsv
 CFLAGS_DEBUG = #-D KMP_DEBUG
@@ -38,10 +38,12 @@ all: $(NAME)
 
 $(NAME): $(OBJS)
 	$Q$(AR_FOR_TARGET) $(ARFLAGS_FOR_TARGET) $@ $(OBJS)
-	$Q$(CP) $@ $(NEWLIB)/lib
-	$Q$(CP) libgomp.spec $(NEWLIB)/lib
-	$Q$(CP) src/omp.h $(NEWLIB)/include
-	
+
+install:
+	$(CP) $(NAME) $(PREFIX)/$(CROSSPREFIX)/lib
+	$(CP) libgomp.spec $(PREFIX)/$(CROSSPREFIX)/lib
+	$(CP) src/omp.h $(PREFIX)/$(CROSSPREFIX)/include
+
 clean:
 	@echo Cleaning examples
 	$Q$(RM) $(NAME) src/*.o src/thirdparty/safeclib/*.o
