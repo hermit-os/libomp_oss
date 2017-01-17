@@ -11,6 +11,12 @@ S_source = $(wildcard src/*.s)
 NAME = libiomp.a
 OBJS = $(C_source:.c=.o) $(CPP_source:.cpp=.o) $(S_source:.s=.o)
 
+prefix = @prefix@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_DATA = @INSTALL_DATA@
+
 #
 # Prettify output
 V = 0
@@ -40,9 +46,9 @@ $(NAME): $(OBJS)
 	$Q$(AR_FOR_TARGET) $(ARFLAGS_FOR_TARGET) $@ $(OBJS)
 
 install:
-	$(CP) $(NAME) $(PREFIX)/$(CROSSPREFIX)/lib
-	$(CP) libgomp.spec $(PREFIX)/$(CROSSPREFIX)/lib
-	$(CP) src/omp.h $(PREFIX)/$(CROSSPREFIX)/include
+	$(INSTALL_DATA) $(NAME) $(PREFIX)/$(CROSSPREFIX)/lib
+	$(INSTALL_DATA) libgomp.spec $(PREFIX)/$(CROSSPREFIX)/lib
+	$(INSTALL_DATA) src/omp.h $(PREFIX)/$(CROSSPREFIX)/include
 
 clean:
 	@echo Cleaning examples
