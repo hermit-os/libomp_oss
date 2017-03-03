@@ -784,10 +784,6 @@ __kmp_msg_format(
 
 // -------------------------------------------------------------------------------------------------
 
-#ifdef __hermit__
-extern "C" int strerror_r( int, char *, size_t );
-#endif
-
 static
 char *
 sys_error(
@@ -838,7 +834,7 @@ sys_error(
                 int    strerror_r( int, char *, size_t );  // XSI version
         */
 
-        #if KMP_OS_LINUX
+        #if KMP_OS_LINUX || KMP_OS_HERMIT
 
             // GNU version of strerror_r.
 

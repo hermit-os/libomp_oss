@@ -92,7 +92,7 @@ function(append_cpp_flags input_cpp_flags)
     endif()
 
     # Any architecture other than Intel(R) MIC Architecture
-    if(NOT ${MIC})
+    if((NOT ${MIC}) AND (NOT ${HERMIT}))
         append_definitions("-D USE_LOAD_BALANCE")
     endif()
 
