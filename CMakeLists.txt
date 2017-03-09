@@ -291,7 +291,12 @@ elseif("${cmake_build_type_lowercase}" STREQUAL "relwithdebinfo")
 endif()
 
 # Include itt notify interface? Right now, always.
-set(LIBOMP_USE_ITT_NOTIFY TRUE)
+# => except for HermitCore
+if(NOT ${HERMIT})
+	set(LIBOMP_USE_ITT_NOTIFY TRUE)
+else()
+	set(LIBOMP_USE_ITT_NOTIFY FALSE)
+endif()
 
 # normal, profile, stubs library.
 set(NORMAL_LIBRARY FALSE)
@@ -441,12 +446,19 @@ endif()
 if(${WINDOWS})
     set(lib_item "${lib_item}md")
 endif()
+if(${HERMIT})
+	set(lib_item libiomp)
+	set(lib_ext "${lib}")
+else()
+	set(lib_ext "${dll}")
+endif()
+
 set(LIBOMP_LIB_NAME "${lib_item}" CACHE STRING "OMP library name")
-set(lib_ext "${dll}")
 # ${lib_file} is real library name:
 # libomp.so    for Linux
 # libomp.dylib for Mac
 # libompmd.dll   for Windows
+# libiomp.a		for HermitCore
 set(lib_file "${LIBOMP_LIB_NAME}${lib_ext}")
 
 ########################################

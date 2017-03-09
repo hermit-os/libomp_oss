@@ -94,7 +94,12 @@ if(${LIBOMP_USE_PREDEFINED_LINKER_FLAGS})
 endif()
 
 # --- ${lib_file} rule ---
-add_library(omp SHARED ${lib_src_files})
+if(${HERMIT})
+	add_library(omp STATIC ${lib_src_files})
+else()
+	add_library(omp SHARED ${lib_src_files})
+endif()
+
 set_target_properties(omp PROPERTIES
     PREFIX "" SUFFIX ""        # Take control
     OUTPUT_NAME "${lib_file}"  # of output name
@@ -334,7 +339,13 @@ if(${WINDOWS})
         install(TARGETS ompimp ARCHIVE DESTINATION lib${LIBOMP_LIBDIR_SUFFIX})
     endif()
 else()
-    install(TARGETS omp LIBRARY DESTINATION lib${LIBOMP_LIBDIR_SUFFIX})
+    install(TARGETS omp
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib)
+
+	if(${HERMIT})
+		install(FILES ../libgomp.spec DESTINATION lib)
+	endif()
 endif()
 install(
     FILES
