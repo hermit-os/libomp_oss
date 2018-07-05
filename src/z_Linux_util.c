@@ -2103,13 +2103,9 @@ __kmp_get_xproc( void ) {
 
     int r = 0;
 
-    #if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD
+    #if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_NETBSD || KMP_OS_HERMIT
 
         r = sysconf( _SC_NPROCESSORS_ONLN );
-
-    #elif KMP_OS_HERMIT
-
-        r = get_num_cpus();
 
     #elif KMP_OS_DARWIN
 
@@ -2262,20 +2258,12 @@ __kmp_runtime_destroy( void )
     __kmp_init_runtime = FALSE;
 }
 
-#if KMP_OS_HERMIT
-extern "C" void sys_msleep(unsigned int ms);
-#endif
-
 /* Put the thread to sleep for a time period */
 /* NOTE: not currently used anywhere */
 void
 __kmp_thread_sleep( int millis )
 {
-#if KMP_OS_HERMIT
-    sys_msleep( ( millis + 500 ) / 1000 );
-#else
     sleep(  ( millis + 500 ) / 1000 );
-#endif
 }
 
 /* Calculate the elapsed wall clock time for the user */
@@ -2290,8 +2278,6 @@ __kmp_elapsed( double *t )
     KMP_CHECK_SYSFAIL_ERRNO( "clock_gettime", status );
     *t = (double) ts.tv_nsec * (1.0 / (double) KMP_NSEC_PER_SEC) +
         (double) ts.tv_sec;
-#elif KMP_OS_HERMIT
-    *t = ((double) (rdtsc() - start_tsc)) / ((double) get_cpufreq() * 1e6);
 # else
     struct timeval tv;
 
@@ -2306,11 +2292,7 @@ __kmp_elapsed( double *t )
 void
 __kmp_elapsed_tick( double *t )
 {
-#if KMP_OS_HERMIT
-    *t = 1 / ((double) get_cpufreq() * 1e6);
-#else
     *t = 1 / (double) CLOCKS_PER_SEC;
-#endif
 }
 
 /*

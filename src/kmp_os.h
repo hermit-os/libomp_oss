@@ -258,7 +258,7 @@ typedef double  kmp_real64;
 #endif
 
 #if KMP_OS_HERMIT
-#define PAGE_SIZE                       (0x1000)
+#define PAGE_SIZE                       (0x200000)
 #else
 #define PAGE_SIZE                       (0x4000)
 #endif
