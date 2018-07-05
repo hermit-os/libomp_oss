@@ -132,7 +132,7 @@ $bulk = read_file( $input );
 
 # Do the replacements.
 $bulk =~
-    s{(?:\$($keyword_rexp)|\$($name_rexp)|\${{(.*?)}}|@($name_rexp)@)}
+    s{(?:\$($keyword_rexp)|\$($name_rexp)|\$\{\{(.*?)\}\}|@($name_rexp)@)}
     {
         my $value;
         if ( defined( $1 ) ) {
