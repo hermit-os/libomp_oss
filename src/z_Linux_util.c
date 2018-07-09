@@ -83,11 +83,7 @@
 /* ------------------------------------------------------------------------ */
 
 struct kmp_sys_timer {
-#if KMP_OS_HERMIT
-    unsigned long long  start;
-#else
     struct timespec     start;
-#endif
 };
 
 // Convert timespec to nanoseconds.
@@ -128,23 +124,6 @@ static kmp_mutex_align_t   __kmp_wait_mx;
 #define KE_TRACE(d,x)	{ printf x ; }
 #undef KF_TRACE
 #define KF_TRACE(d,x)	{ printf x ; }
-#endif
-
-#if KMP_OS_HERMIT
-extern "C" unsigned int get_cpufreq(void);
-static unsigned long long start_tsc;
-
-inline static unsigned long long rdtsc(void)
-{
-	unsigned long lo, hi;
-	asm volatile ("rdtsc" : "=a"(lo), "=d"(hi) :: "memory");
-	return ((unsigned long long) hi << 32ULL | (unsigned long long) lo);
-}
-
-__attribute__((constructor)) static void timer_init()
-{
-	start_tsc = __kmp_sys_timer_data.start = rdtsc();
-}
 #endif
 
 #ifdef DEBUG_SUSPEND
@@ -921,17 +900,9 @@ __kmp_launch_monitor( void *thr )
 
         KA_TRACE( 15, ( "__kmp_launch_monitor: update\n" ) );
 
-#if KMP_OS_HERMIT
-	unsigned int _freq = get_cpufreq();
-	uint64_t _diff =  rdtsc() - start_tsc;
-
-	now.tv_sec = _diff / (_freq * 1000000ULL);
-	now.tv_nsec = ((_diff - now.tv_sec * _freq * 1000000ULL) * 1000ULL) / _freq;
-#else
         status = gettimeofday( &tval, NULL );
         KMP_CHECK_SYSFAIL_ERRNO( "gettimeofday", status );
         TIMEVAL_TO_TIMESPEC( &tval, &now );
-#endif
 
         now.tv_sec  += interval.tv_sec;
         now.tv_nsec += interval.tv_nsec;
@@ -1935,19 +1906,11 @@ __kmp_resume_monitor()
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-#if KMP_OS_HERMIT
-extern "C" void sys_yield(void);
-#endif
-
 void
 __kmp_yield( int cond )
 {
     if (cond && __kmp_yielding_on) {
-#if KMP_OS_HERMIT
-        sys_yield();
-#else
         sched_yield();
-#endif
     }
 }
 
@@ -2033,9 +1996,6 @@ __kmp_read_system_info( struct kmp_sys_info *info )
 void
 __kmp_read_system_time( double *delta )
 {
-#if KMP_OS_HERMIT   
-    *delta = ((double) (rdtsc() - __kmp_sys_timer_data.start)) / ((double) get_cpufreq() * 1e6);
-#else
     double              t_ns;
     struct timeval      tval;
     struct timespec     stop;
@@ -2046,21 +2006,16 @@ __kmp_read_system_time( double *delta )
     TIMEVAL_TO_TIMESPEC( &tval, &stop );
     t_ns = TS2NS(stop) - TS2NS(__kmp_sys_timer_data.start);
     *delta = (t_ns * 1e-9);
-#endif
 }
 
 void
 __kmp_clear_system_time( void )
 {
-#if KMP_OS_HERMIT
-    __kmp_sys_timer_data.start = rdtsc();
-#else
     struct timeval tval;
     int status;
     status = gettimeofday( &tval, NULL );
     KMP_CHECK_SYSFAIL_ERRNO( "gettimeofday", status );
     TIMEVAL_TO_TIMESPEC( &tval, &__kmp_sys_timer_data.start );
-#endif
 }
 
 /* ------------------------------------------------------------------------ */
@@ -2093,10 +2048,6 @@ __kmp_tv_threadprivate_store( kmp_info_t *th, void *global_addr, void *thread_ad
 
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
-
-#if KMP_OS_HERMIT
-extern "C" unsigned int get_num_cpus(void);
-#endif
 
 static int
 __kmp_get_xproc( void ) {
@@ -2258,6 +2209,7 @@ __kmp_runtime_destroy( void )
     __kmp_init_runtime = FALSE;
 }
 
+#ifndef KMP_OS_HERMIT
 /* Put the thread to sleep for a time period */
 /* NOTE: not currently used anywhere */
 void
@@ -2265,6 +2217,7 @@ __kmp_thread_sleep( int millis )
 {
     sleep(  ( millis + 500 ) / 1000 );
 }
+#endif
 
 /* Calculate the elapsed wall clock time for the user */
 void
